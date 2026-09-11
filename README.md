@@ -1,5 +1,47 @@
 <div align="center">
-  <h1>CONVX</h1>
+  <h1>💻 CONVX DESKTOP & MONOREPO ECOSYSTEM</h1>
+  <h3>Native Liquid Glass Music Player for Windows, macOS, Linux, Web & Android</h3>
+  <p><b>Powered by Wails v2 + Svelte 5 + Go & Jetpack Compose</b></p>
+  <p><b>Publisher & Code Signer: PPTI MangoTek</b></p>
+
+  <p>
+    <a href="https://github.com/ardianryan/Convx-Desktop/releases/tag/v1.0.0-desktop">
+      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20CONVX%20DESKTOP%20v1.0.0-007ACC?style=for-the-badge&logo=windows&logoColor=white" alt="Download Convx Desktop v1.0.0">
+    </a>
+    <a href="https://github.com/ardianryan/Convx-Desktop/actions/workflows/desktop-release.yml">
+      <img src="https://img.shields.io/github/actions/workflow/status/ardianryan/Convx-Desktop/desktop-release.yml?style=for-the-badge&label=Desktop%20Release%20CI" alt="Desktop CI Status">
+    </a>
+  </p>
+
+  <p>
+    📦 <b>Native Release Archives:</b>  
+    <a href="https://github.com/ardianryan/Convx-Desktop/releases/tag/v1.0.0-desktop"><b>Windows (x64)</b></a> &nbsp;•&nbsp;
+    <a href="https://github.com/ardianryan/Convx-Desktop/releases/tag/v1.0.0-desktop"><b>macOS (Universal)</b></a> &nbsp;•&nbsp;
+    <a href="https://github.com/ardianryan/Convx-Desktop/releases/tag/v1.0.0-desktop"><b>Linux (x64)</b></a>
+  </p>
+</div>
+
+---
+
+## 🚀 Convx Desktop & Monorepo Overview
+
+- 🖥️ **Unified Svelte 5 Frontend**: Single source of truth UI at `web/frontend` shared between Web Browser and Native Desktop (`desktop/`).
+- 🧊 **Native Apple Liquid Glass & Windows Mica**: Frameless translucent titlebar (`mac.TitleBarHiddenInset()`) on macOS and Windows 11 Mica backdrop.
+- 🛡️ **PPTI MangoTek Certificate Trust**: Distribution `.zip` packages include Root CA (`ppti-mangotek-rootca.crt`) and auto-trust registration scripts (`install-trust.bat` / `install-trust.sh`).
+- ⚡ **Pre-flight Dependency Wizard**: OS dependency checker and interactive `[✓] I accept PPTI MangoTek Certificate & Terms` agreement setup.
+- 📄 **Documentation Quick Links**:
+  - 📋 **[PRD Document](docs/PRD.md)** — Comprehensive Product Requirements & Architecture Specifications
+  - 🤖 **[AGENTS.md](AGENTS.md)** — Architectural Memory & Coding Rules for AI Assistants
+  - ⚙️ **[Gemini Rules](.gemini/rules/convx-desktop-architecture.md)** — Custom Rule Definition
+
+---
+
+<br>
+<hr>
+<br>
+
+<div align="center">
+  <h1>CONVX (Android)</h1>
   <h3>Convx is an open-source, Liquid Glass music player for Android</h3>
 
   <p>
