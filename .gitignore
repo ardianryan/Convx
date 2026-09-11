@@ -40,6 +40,11 @@ captures/
 *.key
 !scripts/certs/
 
+# Desktop Build Binaries
+desktop/convx-desktop
+desktop/build/bin/
+desktop/frontend/dist/
+
 # IntelliJ
 *.iml
 .idea

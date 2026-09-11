@@ -45,8 +45,8 @@ func main() {
 			Theme:                windows.SystemDefault,
 		},
 		Mac: &mac.Options{
-			TitleBar:             mac.TitlebarTitleInTitlebar(),
-			Appearance:           mac.NSAppearanceNameVibrantDark,
+			TitleBar:             mac.TitleBarHiddenInset(),
+			Appearance:           mac.NSAppearanceNameDarkAqua,
 			WebviewIsTransparent: true,
 			WindowIsTranslucent:  true,
 			About: &mac.AboutInfo{

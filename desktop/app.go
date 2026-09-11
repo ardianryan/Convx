@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"convx-web/desktop/wizard"
+	"convx-desktop/wizard"
 	"convx-web/innertube"
 	"convx-web/proxy"
 
@@ -57,12 +57,12 @@ MIIEkjCCA3qgAwIBAgIU...PPTI_MANGO_TEK_ROOT_CA...
 
 // ToggleWindowMinimize minimizes window to system tray
 func (a *App) ToggleWindowMinimize() {
-	wailsRuntime.WindowMinimize(a.ctx)
+	wailsRuntime.WindowMinimise(a.ctx)
 }
 
 // ToggleWindowMaximize toggles window fullscreen / maximize
 func (a *App) ToggleWindowMaximize() {
-	wailsRuntime.WindowToggleMaximize(a.ctx)
+	wailsRuntime.WindowToggleMaximise(a.ctx)
 }
 
 // QuitApp exits desktop application
