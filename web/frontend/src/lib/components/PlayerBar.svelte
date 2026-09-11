@@ -33,6 +33,7 @@
     playPrev,
     playSong
   } from '../stores/player.js';
+  import { getApiUrl } from '../api.js';
 
   let isExpanded = false;
   let isClosingSheet = false;
@@ -136,7 +137,7 @@
     activeLyricIndex = -1;
 
     try {
-      const res = await fetch(`/api/lyrics?title=${encodeURIComponent(song.title)}&artist=${encodeURIComponent(song.artist)}`);
+      const res = await fetch(getApiUrl(`/api/lyrics?title=${encodeURIComponent(song.title)}&artist=${encodeURIComponent(song.artist)}`));
       if (res.ok) {
         const data = await res.json();
         rawLyrics = data;

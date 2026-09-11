@@ -30,6 +30,7 @@ func NewApp() *App {
 // startup is called when the app starts
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	go startLocalServer("7554", a.ytClient, a.audioProxy)
 }
 
 // GetPreflightStatus returns system readiness & PPTI MangoTek cert status

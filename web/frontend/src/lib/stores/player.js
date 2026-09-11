@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { getApiUrl } from '../api.js';
 
 const STORAGE_KEY = 'convx_player_state';
 
@@ -382,7 +383,7 @@ async function tryAlternateEmbedVersion(song) {
 
   try {
     const query = encodeURIComponent(`${song.title} ${song.artist}`);
-    const res = await fetch(`/api/search?q=${query}`);
+    const res = await fetch(getApiUrl(`/api/search?q=${query}`));
     if (res.ok) {
       const data = await res.json();
       const results = data.results || [];
@@ -551,7 +552,7 @@ export async function playSong(song, newQueue = null, startSeconds = 0) {
     stopProgressTimer();
 
     try {
-      const proxyUrl = `/api/proxy/audio/${song.id}`;
+      const proxyUrl = getApiUrl(`/api/proxy/audio/${song.id}`);
       console.log('[Convx Audio] Loading:', proxyUrl);
       audio.pause();
       audio.src = proxyUrl;
