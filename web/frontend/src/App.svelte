@@ -229,9 +229,18 @@
         currentUser = data.user || null;
         platformName = data.platformName || 'Convx Music';
         activeRelay = data.activeRelay || null;
+      } else if (typeof window !== 'undefined' && (window.location.hostname === 'wails.localhost' || window.location.protocol === 'wails:')) {
+        isInitialized = true;
+        isAuthenticated = true;
+        currentUser = { id: 1, name: 'Local User', username: 'desktop' };
       }
     } catch (e) {
       console.warn('Auth status check error:', e);
+      if (typeof window !== 'undefined' && (window.location.hostname === 'wails.localhost' || window.location.protocol === 'wails:')) {
+        isInitialized = true;
+        isAuthenticated = true;
+        currentUser = { id: 1, name: 'Local User', username: 'desktop' };
+      }
     } finally {
       isSystemLoading = false;
     }

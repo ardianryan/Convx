@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'desktop/**'
+      - 'web/frontend/**'
       - 'scripts/certs/**'
       - '.github/workflows/desktop-release.yml'
     tags:

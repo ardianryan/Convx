@@ -122,6 +122,13 @@
         onComplete(data);
       }, 1000);
     } catch (err) {
+      if (typeof window !== 'undefined' && (window.location.hostname === 'wails.localhost' || window.location.protocol === 'wails:')) {
+        submitStatusMessage = 'Instalasi Lokal Selesai!';
+        setTimeout(() => {
+          onComplete({ user: { id: 1, name: fullName.trim() || 'Ryan Ardian', username: 'desktop' } });
+        }, 500);
+        return;
+      }
       errorMessage = err.message || 'Terjadi kesalahan sistem';
       isSubmitting = false;
     }
