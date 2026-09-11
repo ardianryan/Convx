@@ -29,7 +29,7 @@ Convx is a multi-platform music streaming monorepo:
 - **NEVER** build or duplicate UI code inside `desktop/`. 
 - All UI features, components, and pages **MUST** be written inside `web/frontend/`.
 - `desktop/` only contains Wails native options (`main.go`), Wails JS bindings (`app.go`), pre-flight checks (`wizard/`), and OS build configs (`wails.json`, `build/`).
-- `desktop/main.go` embeds `frontend/dist`. During CI or manual builds, `web/frontend/dist` **MUST** be copied into `desktop/frontend/dist` before invoking `wails build` so `go:embed` embeds the actual `index.html` and assets.
+- `desktop/main.go` embeds `frontend/dist`. During CI or manual builds, `web/backend/dist` (Vite's `outDir`) **MUST** be copied into `desktop/frontend/dist` before invoking `wails build` so `go:embed` embeds the actual `index.html` and assets.
 
 ### Rule 2: CI/CD Packaging Tooling
 - In `.github/workflows/desktop-release.yml`:
