@@ -20,6 +20,8 @@ out/
 # Gradle files
 .gradle/
 build/
+!desktop/build/
+!desktop/build/appicon.png
 
 # Local configuration file (sdk path, etc)
 local.properties

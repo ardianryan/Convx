@@ -160,6 +160,7 @@ jobs:
             - **Installation**: Includes automated PPTI MangoTek Certificate Register script (`install-trust.bat` / `install-trust.sh`) for silent trusted publisher status.
           draft: false
           prerelease: false
+          overwrite: true
           files: |
             release-artifacts/**/*/*.zip
             release-artifacts/**/*/*.dmg
