@@ -154,6 +154,8 @@
     { title: 'Chill', subtitle: 'Music Radio', color: 'text-blue-400', num: 'Chill', query: 'Chill Lo-Fi Radio' }
   ];
 
+  let hasSearched = false;
+
   async function checkAccountStatus() {
     try {
       const res = await fetch('/api/account/status');
@@ -178,6 +180,7 @@
       const data = await res.json();
       tracks = data.results || [];
       searchTitle = `Hasil: "${q}"`;
+      hasSearched = true;
       if (forceSearchTab) {
         activeTab = 'search';
       }
@@ -191,7 +194,13 @@
 
   function selectCategory(catQuery) {
     query = catQuery;
-    handleSearch({ detail: catQuery }, false);
+    handleSearch({ detail: catQuery }, true);
+  }
+
+  function handleClearSearch() {
+    query = '';
+    hasSearched = false;
+    searchTitle = 'Pencarian';
   }
 
   async function checkSystemAuth() {
@@ -495,7 +504,7 @@
 
       <!-- Center Search Bar (Hidden on mobile home, shown on search tab or desktop) -->
       <div class="w-56 sm:w-80 md:w-96 {activeTab !== 'search' ? 'hidden sm:block' : 'block'}">
-        <SearchBar bind:query {loading} on:search={(e) => handleSearch(e, true)} />
+        <SearchBar bind:query {loading} on:search={(e) => handleSearch(e, true)} on:clear={handleClearSearch} />
       </div>
 
       <!-- Right Apple Profile, Theme Toggle & Settings Shortcut -->
@@ -858,70 +867,80 @@
           </div>
 
           <!-- Cupertino Search Bar -->
-          <SearchBar bind:query {loading} on:search={handleSearch} />
+          <SearchBar bind:query {loading} on:search={handleSearch} on:clear={handleClearSearch} />
 
-          <!-- Recently Searched Row (Horizontal Cards) -->
-          <section class="space-y-3">
-            <div class="flex items-center justify-between">
-              <h2 class="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Pencarian Terkini</h2>
-              <button on:click={() => (query = '')} class="text-xs font-semibold text-[#fa2d48] hover:underline">Hapus</button>
-            </div>
+          {#if !hasSearched}
+            <!-- Recently Searched Row (Horizontal Cards) - Only shown before search -->
+            <section class="space-y-3">
+              <div class="flex items-center justify-between">
+                <h2 class="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Pencarian Terkini</h2>
+                <button on:click={handleClearSearch} class="text-xs font-semibold text-[#fa2d48] hover:underline">Hapus</button>
+              </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              {#each recentlySearched as item}
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                {#each recentlySearched as item}
+                  <button
+                    on:click={() => selectCategory(item.query)}
+                    class="flex items-center gap-3 p-3 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] border border-black/[0.06] dark:border-white/[0.08] text-left transition-all active:scale-[0.98] group"
+                  >
+                    <div class="w-10 h-10 rounded-xl bg-neutral-200 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-black/5 dark:border-white/10 group-hover:scale-105 transition-transform">
+                      <Music2 class="w-5 h-5 text-neutral-600 dark:text-white/60 group-hover:text-[#fa2d48] transition-colors" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <h4 class="text-xs font-semibold text-neutral-900 dark:text-white truncate">{item.title}</h4>
+                      <p class="text-[11px] text-neutral-500 dark:text-white/40 truncate">{item.subtitle}</p>
+                    </div>
+                  </button>
+                {/each}
+              </div>
+            </section>
+
+            <!-- Browse Categories Grid - Only shown before search -->
+            <section class="space-y-3">
+              <h2 class="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Jelajahi Kategori</h2>
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+                {#each browseCategories as cat}
+                  <button
+                    on:click={() => selectCategory(cat.query)}
+                    class="h-28 sm:h-32 rounded-2xl p-3.5 flex flex-col justify-between text-left shadow-lg transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] border border-white/10 bg-gradient-to-br {cat.gradient} group relative overflow-hidden select-none cursor-pointer"
+                  >
+                    <!-- Background Vignette Overlay -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-white/10 pointer-events-none"></div>
+
+                    <!-- Large Stylized Watermark Icon in bottom-right -->
+                    <div class="absolute -right-2 -bottom-2 w-20 h-20 sm:w-24 sm:h-24 text-white/15 group-hover:text-white/30 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-300 pointer-events-none flex items-center justify-center">
+                      <svelte:component this={cat.icon} class="w-full h-full stroke-[1.5]" />
+                    </div>
+
+                    <!-- Top Glassy Icon Badge -->
+                    <div class="w-8 h-8 rounded-xl bg-black/25 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shadow-sm z-10 group-hover:bg-black/35 group-hover:scale-105 transition-all">
+                      <svelte:component this={cat.icon} class="w-4 h-4" />
+                    </div>
+
+                    <!-- Bottom Title -->
+                    <div class="z-10 mt-auto">
+                      <span class="text-sm sm:text-base font-black text-white leading-tight drop-shadow-md group-hover:underline">
+                        {cat.title}
+                      </span>
+                    </div>
+                  </button>
+                {/each}
+              </div>
+            </section>
+          {:else}
+            <!-- Search Results List - Shown immediately without scrolling down -->
+            <section class="space-y-3 pt-1">
+              <div class="flex items-center justify-between">
                 <button
-                  on:click={() => selectCategory(item.query)}
-                  class="flex items-center gap-3 p-3 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] border border-black/[0.06] dark:border-white/[0.08] text-left transition-all active:scale-[0.98] group"
+                  on:click={handleClearSearch}
+                  class="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors cursor-pointer"
                 >
-                  <div class="w-10 h-10 rounded-xl bg-neutral-200 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-black/5 dark:border-white/10 group-hover:scale-105 transition-transform">
-                    <Music2 class="w-5 h-5 text-neutral-600 dark:text-white/60 group-hover:text-[#fa2d48] transition-colors" />
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <h4 class="text-xs font-semibold text-neutral-900 dark:text-white truncate">{item.title}</h4>
-                    <p class="text-[11px] text-neutral-500 dark:text-white/40 truncate">{item.subtitle}</p>
-                  </div>
+                  <span>&larr; Lihat Semua Kategori</span>
                 </button>
-              {/each}
-            </div>
-          </section>
-
-          <!-- Browse Categories Grid -->
-          <section class="space-y-3">
-            <h2 class="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Jelajahi Kategori</h2>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
-              {#each browseCategories as cat}
-                <button
-                  on:click={() => selectCategory(cat.query)}
-                  class="h-28 sm:h-32 rounded-2xl p-3.5 flex flex-col justify-between text-left shadow-lg transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] border border-white/10 bg-gradient-to-br {cat.gradient} group relative overflow-hidden select-none cursor-pointer"
-                >
-                  <!-- Background Vignette Overlay -->
-                  <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-white/10 pointer-events-none"></div>
-
-                  <!-- Large Stylized Watermark Icon in bottom-right -->
-                  <div class="absolute -right-2 -bottom-2 w-20 h-20 sm:w-24 sm:h-24 text-white/15 group-hover:text-white/30 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-300 pointer-events-none flex items-center justify-center">
-                    <svelte:component this={cat.icon} class="w-full h-full stroke-[1.5]" />
-                  </div>
-
-                  <!-- Top Glassy Icon Badge -->
-                  <div class="w-8 h-8 rounded-xl bg-black/25 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shadow-sm z-10 group-hover:bg-black/35 group-hover:scale-105 transition-all">
-                    <svelte:component this={cat.icon} class="w-4 h-4" />
-                  </div>
-
-                  <!-- Bottom Title -->
-                  <div class="z-10 mt-auto">
-                    <span class="text-sm sm:text-base font-black text-white leading-tight drop-shadow-md group-hover:underline">
-                      {cat.title}
-                    </span>
-                  </div>
-                </button>
-              {/each}
-            </div>
-          </section>
-
-          <!-- Search Results List -->
-          <section class="space-y-3 pt-2">
-            <TrackList {tracks} title={searchTitle} />
-          </section>
+              </div>
+              <TrackList {tracks} title={searchTitle} />
+            </section>
+          {/if}
         </div>
 
       <!-- =================================================================== -->

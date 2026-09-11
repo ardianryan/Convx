@@ -16,6 +16,7 @@
 
   function handleClear() {
     query = '';
+    dispatch('clear');
   }
 </script>
 
