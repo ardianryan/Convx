@@ -15,7 +15,12 @@
     CheckCircle2,
     AlertCircle,
     KeyRound,
-    User
+    User,
+    Info,
+    ExternalLink,
+    Heart,
+    Music,
+    Code2
   } from 'lucide-svelte';
 
   export let isOpen = false;
@@ -298,6 +303,13 @@
           <User class="w-4 h-4" />
           Profil & Akun
         </button>
+        <button
+          on:click={() => (activeTab = 'about')}
+          class="py-3 px-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-all {activeTab === 'about' ? 'border-red-500 text-white' : 'border-transparent text-neutral-400 hover:text-neutral-200'}"
+        >
+          <Info class="w-4 h-4" />
+          Tentang Aplikasi
+        </button>
       </div>
 
       <!-- Feedback alerts -->
@@ -549,6 +561,79 @@
               <KeyRound class="w-3.5 h-3.5" />
               Ganti Password
             </button>
+          </div>
+        {:else if activeTab === 'about'}
+          <!-- TAB: TENTANG APLIKASI -->
+          <div class="space-y-4 animate-in fade-in duration-200">
+            <!-- Porting Explanation Card -->
+            <div class="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-2.5">
+              <div class="flex items-center gap-2 text-[#fa2d48] font-bold text-xs uppercase tracking-wider">
+                <Music class="w-4 h-4" />
+                <span>Porting Resmi Versi Web</span>
+              </div>
+              <p class="text-xs text-neutral-200 leading-relaxed">
+                Aplikasi ini merupakan hasil <b>porting Convx</b> (pemutar musik open-source Android berbasis <i>Liquid Glass</i> dan <i>Jetpack Compose</i>) ke dalam arsitektur <b>Web Fullstack Modern</b>.
+              </p>
+              <p class="text-[11px] text-neutral-400 leading-relaxed">
+                Menghadirkan pengalaman streaming audio katalog lengkap YouTube Music, sinkronisasi lirik berjalan karaoke (LRCLIB), relay audio Cloudflare Workers anti-403, dan deteksi multi-perangkat langsung lewat browser tanpa instalasi APK.
+              </p>
+            </div>
+
+            <!-- Repository Links -->
+            <div class="space-y-2">
+              <h4 class="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Tautan Repositori Kode</h4>
+              
+              <a
+                href="https://github.com/cosmictaserdev-creator/Convx"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-all group btn-pressable"
+              >
+                <div class="flex items-center gap-3 min-w-0">
+                <svg class="w-5 h-5 fill-current text-white shrink-0" viewBox="0 0 24 24">
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                </svg>
+                <div class="min-w-0">
+                    <p class="font-semibold text-xs text-white group-hover:text-rose-400 transition-colors truncate">
+                      cosmictaserdev-creator / Convx
+                    </p>
+                    <p class="text-[10px] text-neutral-400 truncate">
+                      Repositori Asli Android (Liquid Glass Music Player)
+                    </p>
+                  </div>
+                </div>
+                <ExternalLink class="w-3.5 h-3.5 text-neutral-400 group-hover:text-white shrink-0 ml-2" />
+              </a>
+
+              <a
+                href="https://github.com/ardianryan/Convx"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-all group btn-pressable"
+              >
+                <div class="flex items-center gap-3 min-w-0">
+                  <Code2 class="w-5 h-5 text-rose-500 shrink-0" />
+                  <div class="min-w-0">
+                    <p class="font-semibold text-xs text-white group-hover:text-rose-400 transition-colors truncate">
+                      ardianryan / Convx (Web Port)
+                    </p>
+                    <p class="text-[10px] text-neutral-400 truncate">
+                      Repositori Porting Web (Svelte 5 + Golang + Cloudflare)
+                    </p>
+                  </div>
+                </div>
+                <ExternalLink class="w-3.5 h-3.5 text-neutral-400 group-hover:text-white shrink-0 ml-2" />
+              </a>
+            </div>
+
+            <!-- Credits & Stack -->
+            <div class="p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] flex items-center justify-between text-[11px] text-neutral-400">
+              <span>Stack: Svelte 5 • Go • Cloudflare • SQLite</span>
+              <div class="flex items-center gap-1 text-rose-400 font-medium">
+                <Heart class="w-3 h-3 fill-current" />
+                <span>Open Source</span>
+              </div>
+            </div>
           </div>
         {/if}
       </div>

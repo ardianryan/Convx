@@ -38,12 +38,14 @@
     Cloud,
     Loader2,
     Monitor,
-    Tablet
+    Tablet,
+    Info
   } from 'lucide-svelte';
   import SearchBar from './lib/components/SearchBar.svelte';
   import TrackList from './lib/components/TrackList.svelte';
   import PlayerBar from './lib/components/PlayerBar.svelte';
   import AccountModal from './lib/components/AccountModal.svelte';
+  import AboutModal from './lib/components/AboutModal.svelte';
   import OnboardingWizard from './lib/components/OnboardingWizard.svelte';
   import LoginView from './lib/components/LoginView.svelte';
   import SettingsModal from './lib/components/SettingsModal.svelte';
@@ -60,6 +62,7 @@
   let platformName = 'Convx Music';
   let activeRelay = null;
   let showSettingsModal = false;
+  let showAboutModal = false;
 
   function getInitials(name) {
     if (!name) return 'U';
@@ -74,6 +77,17 @@
   function handleUserNameChange(newName) {
     if (currentUser) {
       currentUser = { ...currentUser, name: newName };
+    }
+  }
+
+  // Dynamic Browser Document Title based on current track and playback state
+  $: if (typeof document !== 'undefined') {
+    if ($currentSong && $isPlaying) {
+      document.title = `▶ ${$currentSong.title} • ${$currentSong.artist} — ${platformName}`;
+    } else if ($currentSong) {
+      document.title = `⏸ ${$currentSong.title} • ${$currentSong.artist} — ${platformName}`;
+    } else {
+      document.title = `${platformName} — Apple Style Music Player`;
     }
   }
 
@@ -440,13 +454,23 @@
           <span class="text-[10px] text-neutral-500 dark:text-white/40">{isLoggedIn ? 'YouTube Linked' : 'Admin'}</span>
         </div>
       </div>
-      <button
-        on:click={() => (showAccountModal = true)}
-        class="w-7 h-7 rounded-full bg-black/[0.05] dark:bg-white/[0.06] hover:bg-black/[0.1] dark:hover:bg-white/[0.12] flex items-center justify-center text-neutral-600 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
-        title="Pengaturan Akun & Cookie"
-      >
-        <Key class="w-3.5 h-3.5" />
-      </button>
+      <div class="flex items-center gap-1.5">
+        <button
+          type="button"
+          on:click={() => (showAboutModal = true)}
+          class="w-7 h-7 rounded-full bg-black/[0.05] dark:bg-white/[0.06] hover:bg-black/[0.1] dark:hover:bg-white/[0.12] flex items-center justify-center text-neutral-600 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+          title="Tentang Aplikasi Convx"
+        >
+          <Info class="w-3.5 h-3.5" />
+        </button>
+        <button
+          on:click={() => (showAccountModal = true)}
+          class="w-7 h-7 rounded-full bg-black/[0.05] dark:bg-white/[0.06] hover:bg-black/[0.1] dark:hover:bg-white/[0.12] flex items-center justify-center text-neutral-600 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+          title="Pengaturan Akun & Cookie"
+        >
+          <Key class="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   </aside>
 
@@ -511,6 +535,15 @@
       <div class="flex items-center gap-2">
         <!-- 1-Icon Theme Cycle Toggle (Auto -> Light -> Dark) -->
         <ThemeToggle />
+
+        <button
+          type="button"
+          on:click={() => (showAboutModal = true)}
+          class="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer border border-black/5 dark:border-white/5"
+          title="Tentang Aplikasi Convx Web"
+        >
+          <Info class="w-4 h-4" />
+        </button>
 
         <button
           type="button"
@@ -1055,6 +1088,12 @@
       showAccountModal = false; 
       checkAccountStatus(); 
     }} 
+  />
+
+  <!-- About Convx Modal -->
+  <AboutModal
+    isOpen={showAboutModal}
+    onClose={() => (showAboutModal = false)}
   />
 </div>
 {/if}
