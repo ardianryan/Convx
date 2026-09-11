@@ -106,6 +106,7 @@ app.post('/api/setup/init', async (req, res) => {
     const {
       platformName = 'Convx Music',
       username,
+      name,
       password,
       cfAccountId,
       cfApiToken,
@@ -120,12 +121,14 @@ app.post('/api/setup/init', async (req, res) => {
     }
 
     const cleanUsername = username.trim();
+    const cleanName = (name && name.trim()) ? name.trim() : cleanUsername;
     const cleanPlatform = platformName.trim() || 'Convx Music';
 
     // 1. Create Admin User
     const passwordHash = await hashPassword(password);
     const userInsert = db.insert(schema.users).values({
       username: cleanUsername,
+      name: cleanName,
       passwordHash,
       createdAt: Date.now(),
     }).run();
@@ -187,7 +190,7 @@ app.post('/api/setup/init', async (req, res) => {
     res.json({
       status: 'ok',
       message: 'Onboarding completed successfully',
-      user: { id: userId, username: cleanUsername },
+      user: { id: userId, username: cleanUsername, name: cleanName },
       platformName: cleanPlatform,
       relayUrl: deployedRelayUrl,
       relayWarning: cfDeployError,
@@ -236,7 +239,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.json({
       status: 'ok',
-      user: { id: user.id, username: user.username },
+      user: { id: user.id, username: user.username, name: user.name || user.username },
       platformName: getPlatformName(),
     });
   } catch (err) {
@@ -299,6 +302,8 @@ app.get('/api/settings', requireAuth, (req, res) => {
 
   res.json({
     platformName,
+    name: req.user.name || req.user.username || '',
+    username: req.user.username,
     cfAccountId,
     hasApiToken: !!process.env.CF_API_TOKEN,
     activeRelay,
@@ -309,12 +314,24 @@ app.get('/api/settings', requireAuth, (req, res) => {
 // POST /api/settings
 app.post('/api/settings', requireAuth, async (req, res) => {
   try {
-    const { platformName, cfAccountId, cfApiToken, newPassword } = req.body;
+    const { platformName, cfAccountId, cfApiToken, newPassword, name } = req.body;
 
     if (platformName && platformName.trim()) {
       const clean = platformName.trim();
       setSetting('platform_name', clean);
       updateEnv({ PLATFORM_NAME: clean });
+    }
+
+    let updatedName = req.user.name;
+    if (name !== undefined) {
+      const clean = name.trim();
+      if (clean) {
+        updatedName = clean;
+        db.update(schema.users)
+          .set({ name: clean })
+          .where(eq(schema.users.id, req.user.id))
+          .run();
+      }
     }
 
     const envUpdates = {};
@@ -341,6 +358,11 @@ app.post('/api/settings', requireAuth, async (req, res) => {
       status: 'ok',
       message: 'Settings updated successfully',
       platformName: getPlatformName(),
+      user: {
+        id: req.user.id,
+        username: req.user.username,
+        name: updatedName || req.user.username,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

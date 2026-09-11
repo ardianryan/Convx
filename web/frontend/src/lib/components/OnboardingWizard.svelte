@@ -27,6 +27,7 @@
   let platformName = 'Convx Music';
 
   // Step 2: Admin Account
+  let fullName = 'Ryan Ardian';
   let username = 'admin';
   let password = '';
   let confirmPassword = '';
@@ -54,6 +55,10 @@
       }
       step = 2;
     } else if (step === 2) {
+      if (!fullName.trim()) {
+        errorMessage = 'Nama Anda tidak boleh kosong';
+        return;
+      }
       if (!username.trim()) {
         errorMessage = 'Username admin tidak boleh kosong';
         return;
@@ -97,6 +102,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           platformName: platformName.trim(),
+          name: fullName.trim() || username.trim(),
           username: username.trim(),
           password,
           cfAccountId: enableRelay ? cfAccountId.trim() : '',
@@ -213,6 +219,22 @@
     {:else if step === 2}
       <div class="space-y-4 animate-fadeIn">
         <div class="p-4 bg-white/[0.03] border border-white/[0.06] rounded-2xl space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-neutral-300 uppercase tracking-wider mb-2">
+              Nama Anda (Nama Tampilan)
+            </label>
+            <div class="relative">
+              <User class="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="text"
+                bind:value={fullName}
+                placeholder="Ryan Ardian"
+                class="w-full bg-black/40 border border-white/15 focus:border-red-500 rounded-xl pl-11 pr-4 py-3 text-white text-base focus:outline-none transition-all placeholder:text-neutral-500"
+              />
+            </div>
+            <p class="text-[11px] text-neutral-400 mt-1">Inisial profil (misal: "RA") akan otomatis dibuat dari nama ini.</p>
+          </div>
+
           <div>
             <label class="block text-xs font-medium text-neutral-300 uppercase tracking-wider mb-2">
               Username Admin

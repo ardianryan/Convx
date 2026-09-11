@@ -61,6 +61,22 @@
   let activeRelay = null;
   let showSettingsModal = false;
 
+  function getInitials(name) {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  $: userDisplayName = currentUser?.name || currentUser?.username || 'Ryan Ardian';
+  $: userInitials = getInitials(userDisplayName);
+
+  function handleUserNameChange(newName) {
+    if (currentUser) {
+      currentUser = { ...currentUser, name: newName };
+    }
+  }
+
   // Navigation tab: 'home' (Beranda) | 'new' (Baru) | 'radio' (Radio) | 'library' (Perpustakaan) | 'search' (Pencarian)
   let activeTab = 'home';
 
@@ -406,13 +422,13 @@
 
     <!-- User Profile Footer -->
     <div class="p-3 border-t border-black/[0.08] dark:border-white/[0.06] flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-500 to-amber-500 flex items-center justify-center font-bold text-xs shadow-md text-white">
-          RA
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-500 to-amber-500 flex items-center justify-center font-bold text-xs shadow-md text-white shrink-0">
+          {userInitials}
         </div>
-        <div class="flex flex-col">
-          <span class="text-xs font-semibold leading-tight text-neutral-900 dark:text-white">Ryan Ardian</span>
-          <span class="text-[10px] text-neutral-500 dark:text-white/40">{isLoggedIn ? 'YouTube Linked' : 'Guest'}</span>
+        <div class="flex flex-col min-w-0">
+          <span class="text-xs font-semibold leading-tight text-neutral-900 dark:text-white truncate">{userDisplayName}</span>
+          <span class="text-[10px] text-neutral-500 dark:text-white/40">{isLoggedIn ? 'YouTube Linked' : 'Admin'}</span>
         </div>
       </div>
       <button
@@ -500,9 +516,9 @@
           type="button"
           on:click={() => (showSettingsModal = true)}
           class="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-500 to-amber-500 flex items-center justify-center font-bold text-xs shadow-md border border-white/20 active:scale-95 transition-all text-white cursor-pointer"
-          title="Profil Admin: {currentUser?.username || 'admin'}"
+          title="Profil: {userDisplayName}"
         >
-          {currentUser?.username ? currentUser.username.slice(0, 2).toUpperCase() : 'AD'}
+          {userInitials}
         </button>
       </div>
     </header>
@@ -1009,6 +1025,8 @@
     currentPlatformName={platformName}
     onPlatformNameChange={(newName) => (platformName = newName)}
     onRelayChange={(relay) => (activeRelay = relay)}
+    currentUserName={userDisplayName}
+    onUserNameChange={handleUserNameChange}
   />
 
   <!-- YouTube Cookie Account Modal -->

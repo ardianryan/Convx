@@ -56,6 +56,7 @@ async function validateSession(token) {
     .select({
       id: schema.users.id,
       username: schema.users.username,
+      name: schema.users.name,
       createdAt: schema.users.createdAt,
     })
     .from(schema.users)

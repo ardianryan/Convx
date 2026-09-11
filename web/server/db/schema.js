@@ -10,6 +10,7 @@ const settings = sqliteTable('settings', {
 const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   username: text('username').notNull().unique(),
+  name: text('name'),
   passwordHash: text('password_hash').notNull(),
   createdAt: integer('created_at').notNull(),
 });

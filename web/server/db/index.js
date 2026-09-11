@@ -24,6 +24,7 @@ sqlite.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
+    name TEXT,
     password_hash TEXT NOT NULL,
     created_at INTEGER NOT NULL
   );
@@ -57,6 +58,11 @@ sqlite.exec(`
     created_at INTEGER NOT NULL
   );
 `);
+
+// Safe migration for existing installations
+try {
+  sqlite.exec(`ALTER TABLE users ADD COLUMN name TEXT;`);
+} catch (_) {}
 
 const db = drizzle(sqlite, { schema });
 

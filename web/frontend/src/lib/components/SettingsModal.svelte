@@ -14,7 +14,8 @@
     Sparkles,
     CheckCircle2,
     AlertCircle,
-    KeyRound
+    KeyRound,
+    User
   } from 'lucide-svelte';
 
   export let isOpen = false;
@@ -24,11 +25,14 @@
   export let currentPlatformName = 'Convx Music';
   export let onPlatformNameChange = (name) => {};
   export let onRelayChange = (relay) => {};
+  export let currentUserName = 'Ryan Ardian';
+  export let onUserNameChange = (name) => {};
 
   let activeTab = 'relay'; // 'relay' | 'general' | 'security'
 
   // Settings data
   let platformName = currentPlatformName;
+  let userName = currentUserName;
   let cfAccountId = '';
   let cfApiToken = '';
   let showToken = false;
@@ -48,6 +52,15 @@
   let message = '';
   let error = '';
 
+  function getInitials(name) {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  $: userInitials = getInitials(userName);
+
   $: if (isOpen) {
     loadSettings();
   }
@@ -60,6 +73,10 @@
       if (res.ok) {
         const data = await res.json();
         platformName = data.platformName || currentPlatformName;
+        if (data.name) {
+          userName = data.name;
+          onUserNameChange(data.name);
+        }
         cfAccountId = data.cfAccountId || '';
         activeRelay = data.activeRelay;
         onRelayChange(activeRelay);
@@ -69,6 +86,28 @@
       console.error(err);
     } finally {
       isLoading = false;
+    }
+  }
+
+  async function saveProfileName() {
+    error = '';
+    message = '';
+    if (!userName || !userName.trim()) {
+      error = 'Nama profil tidak boleh kosong';
+      return;
+    }
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: userName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      onUserNameChange(userName.trim());
+      message = 'Nama profil berhasil diperbarui';
+    } catch (err) {
+      error = err.message;
     }
   }
 
@@ -241,8 +280,8 @@
           on:click={() => (activeTab = 'security')}
           class="py-3 px-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-all {activeTab === 'security' ? 'border-red-500 text-white' : 'border-transparent text-neutral-400 hover:text-neutral-200'}"
         >
-          <Shield class="w-4 h-4" />
-          Keamanan
+          <User class="w-4 h-4" />
+          Profil & Akun
         </button>
       </div>
 
@@ -418,6 +457,40 @@
             </button>
           </div>
         {:else if activeTab === 'security'}
+          <!-- Profile Name Update -->
+          <div class="p-4 bg-white/[0.03] border border-white/[0.06] rounded-2xl space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="text-xs font-medium text-neutral-300 uppercase tracking-wider">
+                Profil Pengguna
+              </div>
+              <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-500 to-amber-500 flex items-center justify-center font-bold text-xs shadow-md text-white">
+                {userInitials}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-neutral-400 mb-1">Nama Anda (Nama Tampilan)</label>
+              <div class="relative">
+                <input
+                  type="text"
+                  bind:value={userName}
+                  placeholder="Ryan Ardian"
+                  class="w-full bg-black/40 border border-white/15 focus:border-red-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none placeholder:text-neutral-500"
+                />
+              </div>
+              <p class="text-[10px] text-neutral-400 mt-1">Inisial avatar ("{userInitials}") otomatis dibuat dari nama ini untuk navbar & sidebar.</p>
+            </div>
+
+            <button
+              type="button"
+              on:click={saveProfileName}
+              class="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Check class="w-3.5 h-3.5" />
+              Simpan Nama Profil
+            </button>
+          </div>
+
           <!-- Password update -->
           <div class="p-4 bg-white/[0.03] border border-white/[0.06] rounded-2xl space-y-3">
             <div class="text-xs font-medium text-neutral-300 uppercase tracking-wider">
