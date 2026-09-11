@@ -24,6 +24,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /convx-go .
 
 # Stage 3: Install Node.js Gateway Dependencies
 FROM node:22-alpine AS node-builder
+RUN apk add --no-cache python3 make g++
 WORKDIR /build/server
 COPY server/package*.json ./
 RUN npm ci --omit=dev
@@ -32,7 +33,7 @@ COPY server/ ./
 # Stage 4: Production Image
 FROM node:22-alpine
 
-RUN apk --no-cache add ca-certificates tzdata wget
+RUN apk --no-cache add ca-certificates tzdata wget libstdc++
 
 # Create non-root user
 RUN addgroup -S convx && adduser -S convx -G convx
