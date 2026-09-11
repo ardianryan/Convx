@@ -18,8 +18,16 @@ echo "=== [PPTI MangoTek] Registering Trusted Root Certificate ==="
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "[macOS] Adding PPTI MangoTek Root CA to System Keychain..."
-    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$CERT_FILE"
-    echo "[SUCCESS] PPTI MangoTek Root CA added to macOS System Keychain!"
+    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$CERT_FILE" || true
+    echo "[macOS] Clearing quarantine flags & re-signing app bundle..."
+    if [ -d "${SCRIPT_DIR}/Convx.app" ]; then
+        xattr -cr "${SCRIPT_DIR}/Convx.app" 2>/dev/null || true
+        codesign --force --deep -s - "${SCRIPT_DIR}/Convx.app" 2>/dev/null || true
+    elif [ -d "${SCRIPT_DIR}/convx-desktop.app" ]; then
+        xattr -cr "${SCRIPT_DIR}/convx-desktop.app" 2>/dev/null || true
+        codesign --force --deep -s - "${SCRIPT_DIR}/convx-desktop.app" 2>/dev/null || true
+    fi
+    echo "[SUCCESS] PPTI MangoTek Root CA & macOS App Trust updated!"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     echo "[Linux] Adding PPTI MangoTek Root CA to system CA store..."
     if [ -d "/usr/local/share/ca-certificates" ]; then

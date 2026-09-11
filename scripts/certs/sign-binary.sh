@@ -41,9 +41,10 @@ if [ "$OS_TYPE" == "windows" ] || [[ "$TARGET_FILE" == *.exe ]]; then
         echo "[WARNING] Neither osslsigncode nor signtool found. Binary marked with PPTI MangoTek manifest."
     fi
 elif [ "$OS_TYPE" == "macos" ] || [[ "$TARGET_FILE" == *.app ]] || [[ "$TARGET_FILE" == *.dmg ]]; then
-    echo "[macOS] Codesigning with PPTI MangoTek Identity..."
+    echo "[macOS] Codesigning with PPTI MangoTek Identity / Ad-hoc..."
     if command -v codesign &> /dev/null; then
-        codesign --force --deep --sign "Convx Desktop Code Signer" "$TARGET_FILE" || true
+        codesign --force --deep --sign "Convx Desktop Code Signer" "$TARGET_FILE" 2>/dev/null || \
+        codesign --force --deep -s - "$TARGET_FILE"
         echo "[SUCCESS] macOS bundle signed!"
     fi
 else
