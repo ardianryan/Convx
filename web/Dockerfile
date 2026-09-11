@@ -13,7 +13,8 @@ RUN npm run build
 # Output: /build/backend/dist (vite.config.js outDir: '../backend/dist')
 
 # Stage 2: Build Go Backend (Static Binary)
-FROM golang:1.24-alpine AS go-builder
+FROM golang:1.27-alpine AS go-builder
+ENV GOTOOLCHAIN=auto
 WORKDIR /build/backend
 COPY backend/go.mod backend/go.sum* ./
 RUN go mod download
