@@ -118,7 +118,7 @@ jobs:
     name: Create GitHub Release
     needs: build-desktop
     runs-on: ubuntu-latest
-    if: !cancelled() && !failed()
+    if: success()
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
