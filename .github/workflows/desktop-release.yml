@@ -86,23 +86,36 @@ jobs:
           if [ -f "desktop/build/bin/convx-desktop.exe" ]; then
             ./scripts/certs/sign-binary.sh desktop/build/bin/convx-desktop.exe windows
           fi
+          cd desktop/build/bin
+          cp ../../../scripts/certs/ppti-mangotek-rootca.crt .
+          cp ../../../scripts/certs/install-trust.bat .
+          zip -r Convx-Windows-x64.zip convx-desktop.exe ppti-mangotek-rootca.crt install-trust.bat
 
       - name: Package & Sign macOS Bundle
         if: matrix.os == 'macos-latest'
         run: |
           chmod +x scripts/certs/sign-binary.sh
-          if [ -d "desktop/build/bin/convx-desktop.app" ]; then
-            ./scripts/certs/sign-binary.sh desktop/build/bin/convx-desktop.app macos
-          elif [ -d "desktop/build/bin/Convx.app" ]; then
-            ./scripts/certs/sign-binary.sh desktop/build/bin/Convx.app macos
+          cd desktop/build/bin
+          cp ../../../scripts/certs/ppti-mangotek-rootca.crt .
+          cp ../../../scripts/certs/install-trust.sh .
+          if [ -d "convx-desktop.app" ]; then
+            ../../../scripts/certs/sign-binary.sh convx-desktop.app macos
+            zip -r Convx-macOS-Universal.zip convx-desktop.app ppti-mangotek-rootca.crt install-trust.sh
+          elif [ -d "Convx.app" ]; then
+            ../../../scripts/certs/sign-binary.sh Convx.app macos
+            zip -r Convx-macOS-Universal.zip Convx.app ppti-mangotek-rootca.crt install-trust.sh
           fi
 
       - name: Package Linux Artifacts
         if: matrix.os == 'ubuntu-latest'
         run: |
           chmod +x scripts/certs/sign-binary.sh
-          if [ -f "desktop/build/bin/convx-desktop" ]; then
-            ./scripts/certs/sign-binary.sh desktop/build/bin/convx-desktop linux
+          cd desktop/build/bin
+          cp ../../../scripts/certs/ppti-mangotek-rootca.crt .
+          cp ../../../scripts/certs/install-trust.sh .
+          if [ -f "convx-desktop" ]; then
+            ../../../scripts/certs/sign-binary.sh convx-desktop linux
+            zip -r Convx-Linux-x64.zip convx-desktop ppti-mangotek-rootca.crt install-trust.sh
           fi
 
       - name: Upload Build Artifacts
@@ -110,9 +123,7 @@ jobs:
         with:
           name: Convx-Desktop-${{ matrix.os }}
           path: |
-            desktop/build/bin/*
-            scripts/certs/ppti-mangotek-rootca.crt
-            scripts/certs/install-trust.*
+            desktop/build/bin/*.zip
 
   create-release:
     name: Create GitHub Release
