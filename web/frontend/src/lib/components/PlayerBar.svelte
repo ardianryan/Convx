@@ -36,7 +36,7 @@
 
   let isExpanded = false;
   let showQueue = false;
-  let showLyrics = false;
+  let showLyrics = true; // Default to true so lyrics are shown immediately on mobile & desktop
   let isMuted = false;
   let prevVolume = 0.85;
 
@@ -347,24 +347,31 @@
           
           <!-- MOBILE-ONLY COMPACT HEADER (When lyrics view is active on mobile) -->
           {#if showLyrics}
-            <div class="md:hidden w-full flex items-center gap-3.5 mb-3 px-1">
-              <img
-                src={$currentSong.thumbnail}
-                alt={$currentSong.title}
-                class="w-12 h-12 rounded-xl object-cover shadow-lg border border-white/10 shrink-0"
-              />
-              <div class="min-w-0 flex-1">
-                <h3 class="text-base font-bold text-white truncate leading-tight">
-                  {$currentSong.title}
-                </h3>
-                <p class="text-xs text-white/60 truncate mt-0.5">
-                  {$currentSong.artist}
-                </p>
-              </div>
+            <div class="md:hidden w-full flex items-center justify-between gap-3 mb-2 px-1">
               <button
                 type="button"
                 on:click={() => (showLyrics = false)}
-                class="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/80 text-xs font-semibold shrink-0"
+                class="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer"
+                title="Lihat Sampul"
+              >
+                <img
+                  src={$currentSong.thumbnail}
+                  alt={$currentSong.title}
+                  class="w-12 h-12 rounded-xl object-cover shadow-lg border border-white/10 shrink-0"
+                />
+                <div class="min-w-0 flex-1">
+                  <h3 class="text-base font-bold text-white truncate leading-tight">
+                    {$currentSong.title}
+                  </h3>
+                  <p class="text-xs text-white/60 truncate mt-0.5">
+                    {$currentSong.artist}
+                  </p>
+                </div>
+              </button>
+              <button
+                type="button"
+                on:click={() => (showLyrics = false)}
+                class="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/90 text-xs font-semibold shrink-0 cursor-pointer transition-colors"
               >
                 Sampul
               </button>
@@ -385,6 +392,23 @@
                 </div>
               {/if}
             </div>
+
+            <!-- Mobile quick button to switch back to Lyrics -->
+            <button
+              type="button"
+              on:click={() => {
+                showLyrics = true;
+                if ($currentSong) {
+                  fetchLyrics($currentSong);
+                  isUserScrolling = false;
+                  setTimeout(() => scrollToActiveLyric(true), 200);
+                }
+              }}
+              class="md:hidden mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-semibold backdrop-blur-md cursor-pointer transition-colors"
+            >
+              <MessageSquareQuote class="w-3.5 h-3.5" />
+              <span>Buka Lirik Berjalan</span>
+            </button>
           </div>
 
           <!-- DESKTOP TRACK INFO & CONTROLS (Always on left side on desktop) -->
