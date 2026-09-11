@@ -24,7 +24,7 @@ export const volume = writable(savedState?.volume !== undefined ? savedState.vol
 export const queue = writable(savedState?.queue || (savedState?.song ? [savedState.song] : []));
 export const currentIndex = writable(savedState?.currentIndex !== undefined ? savedState.currentIndex : (savedState?.song ? 0 : -1));
 export const error = writable(null);
-export const playbackEngine = writable('audio'); // Default: Native HTML5 Audio via proxy
+export const playbackEngine = writable('audio'); // Default: Native HTML5 Audio (super smooth & lightweight)
 
 let audio = null;
 let keepaliveAudio = null;
@@ -252,7 +252,7 @@ export function createPlayerInstance() {
       width: '100%',
       host: 'https://www.youtube.com',
       playerVars: {
-        autoplay: 1,
+        autoplay: 0,
         controls: 0,
         disablekb: 1,
         enablejsapi: 1,
@@ -552,23 +552,36 @@ export async function playSong(song, newQueue = null, startSeconds = 0) {
 
     try {
       const proxyUrl = `/api/proxy/audio/${song.id}`;
+      console.log('[Convx Audio] Loading:', proxyUrl);
       audio.pause();
       audio.src = proxyUrl;
       audio.volume = currentVol;
       audio.load();
       if (startSeconds > 0) {
-        audio.currentTime = startSeconds;
+        audio.addEventListener('loadedmetadata', () => {
+          try { audio.currentTime = startSeconds; } catch(_) {}
+        }, { once: true });
       }
       await audio.play();
+      console.log('[Convx Audio] Playing successfully!');
       isPlaying.set(true);
       isLoading.set(false);
       return;
     } catch (err) {
-      console.warn('Native audio play error:', err);
-      isLoading.set(false);
-      isPlaying.set(false);
-      error.set('Gagal memutar audio: ' + (err.message || 'Stream error'));
-      return;
+      console.warn('[Convx Audio] Play error:', err?.name, err?.message);
+      // If autoplay blocked, try on next user interaction
+      if (err?.name === 'NotAllowedError') {
+        console.log('[Convx Audio] Autoplay blocked, will play on next interaction');
+        isLoading.set(false);
+        isPlaying.set(false);
+        // The audio src is loaded, just needs user gesture to play
+        return;
+      }
+      // For other errors, fall back to YouTube engine
+      console.log('[Convx Audio] Falling back to YouTube engine...');
+      playbackEngine.set('video');
+      currentEngine = 'video';
+      // Don't return — let it fall through to YouTube engine below
     }
   }
 

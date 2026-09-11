@@ -83,19 +83,36 @@ func (p *AudioProxy) ServeVideo(w http.ResponseWriter, r *http.Request, videoID 
 		return
 	}
 
-	statusCode, err := p.streamChunk(w, r, targetURL)
+	// First attempt: try with relay if configured, otherwise direct
+	hasRelay := p.GetRelayURL() != ""
+	statusCode, err := p.streamChunk(w, r, targetURL, hasRelay)
 	if err != nil || statusCode == http.StatusForbidden || statusCode == http.StatusGone {
-		// 403 Forbidden or 410 Gone indicates IP mismatch or expired token
-		// Refresh stream URL and retry once transparently!
-		log.Printf("[PROXY] Got status %d for %s. Refreshing stream URL and retrying...", statusCode, videoID)
-		freshURL, resolveErr := p.getOrResolveURL(videoID, resolver, true)
-		if resolveErr == nil && freshURL != "" {
-			_, retryErr := p.streamChunk(w, r, freshURL)
-			if retryErr == nil {
+		// If relay failed with 403/410/error, IMMEDIATELY retry with DIRECT connection!
+		if hasRelay {
+			log.Printf("[PROXY] Relay failed (%d) for %s. Retrying directly...", statusCode, videoID)
+			directStatus, directErr := p.streamChunk(w, r, targetURL, false)
+			if directErr == nil && directStatus < 400 {
 				return
 			}
-			log.Printf("[PROXY] Retry failed for %s: %v", videoID, retryErr)
-			http.Error(w, fmt.Sprintf("stream proxy error: %v", retryErr), http.StatusBadGateway)
+		}
+
+		// Refresh stream URL and retry once transparently!
+		log.Printf("[PROXY] Refreshing stream URL for %s and retrying...", videoID)
+		freshURL, resolveErr := p.getOrResolveURL(videoID, resolver, true)
+		if resolveErr == nil && freshURL != "" {
+			// Try direct first on retry
+			directStatus, directErr := p.streamChunk(w, r, freshURL, false)
+			if directErr == nil && directStatus < 400 {
+				return
+			}
+			if hasRelay {
+				_, retryErr := p.streamChunk(w, r, freshURL, true)
+				if retryErr == nil {
+					return
+				}
+			}
+			log.Printf("[PROXY] Retry failed for %s", videoID)
+			http.Error(w, "stream proxy retry failed", http.StatusBadGateway)
 			return
 		}
 		http.Error(w, fmt.Sprintf("stream proxy error: %v", err), http.StatusBadGateway)
@@ -108,7 +125,13 @@ func (p *AudioProxy) ServeURL(w http.ResponseWriter, r *http.Request, rawURL str
 		http.Error(w, "missing stream url", http.StatusBadRequest)
 		return
 	}
-	_, err := p.streamChunk(w, r, rawURL)
+	hasRelay := p.GetRelayURL() != ""
+	status, err := p.streamChunk(w, r, rawURL, hasRelay)
+	if err != nil || status >= 400 {
+		if hasRelay {
+			_, err = p.streamChunk(w, r, rawURL, false)
+		}
+	}
 	if err != nil {
 		log.Printf("[PROXY] ServeURL error: %v", err)
 	}
@@ -145,7 +168,7 @@ func (p *AudioProxy) getOrResolveURL(videoID string, resolver func(string) (stri
 	return rawURL, nil
 }
 
-func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamURL string) (int, error) {
+func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamURL string, useRelay bool) (int, error) {
 	parsedURL, err := url.Parse(streamURL)
 	if err != nil || (!strings.HasSuffix(parsedURL.Host, "googlevideo.com") && !strings.HasSuffix(parsedURL.Host, "youtube.com")) {
 		return http.StatusForbidden, fmt.Errorf("invalid host: %s", parsedURL.Host)
@@ -159,7 +182,7 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 	targetURL := streamURL
 	relay := p.GetRelayURL()
 	var isRelayed bool
-	if relay != "" {
+	if useRelay && relay != "" {
 		targetURL = relay
 		isRelayed = true
 	}
