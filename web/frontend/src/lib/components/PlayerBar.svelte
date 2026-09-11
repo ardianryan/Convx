@@ -83,7 +83,7 @@
     if (!lrcText) return [];
     const lines = lrcText.split('\n');
     const result = [];
-    const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/g;
+    const timeRegex = /\[(\d{1,2}):(\d{2})(?:[\.:](\d{1,3}))?\]/g;
 
     for (const line of lines) {
       const match = [...line.matchAll(timeRegex)];
@@ -93,7 +93,7 @@
           for (const m of match) {
             const min = parseInt(m[1], 10);
             const sec = parseInt(m[2], 10);
-            const ms = parseFloat('0.' + m[3]);
+            const ms = m[3] ? parseFloat('0.' + m[3]) : 0;
             const totalSec = min * 60 + sec + ms;
             result.push({ time: totalSec, text });
           }
@@ -416,7 +416,8 @@
                 step="0.5"
                 value={$currentTime}
                 on:input={handleSeek}
-                class="w-full h-1.5 bg-white/20 rounded-lg cursor-pointer appearance-none accent-white transition-all hover:h-2"
+                style="background: linear-gradient(to right, #ffffff {progressPercent}%, rgba(255, 255, 255, 0.25) {progressPercent}%);"
+                class="w-full h-1.5 rounded-lg cursor-pointer appearance-none accent-white transition-all hover:h-2"
               />
               <div class="flex justify-between text-xs font-semibold text-white/40 font-mono">
                 <span>{formatTime($currentTime)}</span>
@@ -480,7 +481,8 @@
                 step="0.01"
                 value={$volume}
                 on:input={handleVolume}
-                class="w-full h-1.5 bg-white/20 rounded-lg cursor-pointer appearance-none accent-white"
+                style="background: linear-gradient(to right, #ffffff {$volume * 100}%, rgba(255, 255, 255, 0.25) {$volume * 100}%);"
+                class="w-full h-1.5 rounded-lg cursor-pointer appearance-none accent-white"
               />
 
               <Volume2 class="w-4 h-4 text-white/40" />
@@ -583,7 +585,8 @@
             step="0.5"
             value={$currentTime}
             on:input={handleSeek}
-            class="w-full h-1 bg-white/20 rounded-lg cursor-pointer appearance-none accent-white transition-all"
+            style="background: linear-gradient(to right, #ffffff {progressPercent}%, rgba(255, 255, 255, 0.25) {progressPercent}%);"
+            class="w-full h-1 rounded-lg cursor-pointer appearance-none accent-white transition-all"
           />
           <div class="flex justify-between text-[11px] font-semibold text-white/40 font-mono">
             <span>{formatTime($currentTime)}</span>
@@ -647,7 +650,8 @@
               step="0.01"
               value={$volume}
               on:input={handleVolume}
-              class="w-full h-1 bg-white/20 rounded-lg cursor-pointer appearance-none accent-white"
+              style="background: linear-gradient(to right, #ffffff {$volume * 100}%, rgba(255, 255, 255, 0.25) {$volume * 100}%);"
+              class="w-full h-1 rounded-lg cursor-pointer appearance-none accent-white"
             />
             <Volume2 class="w-3.5 h-3.5 text-white/40" />
           </div>

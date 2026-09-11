@@ -160,6 +160,9 @@ func handleLyrics(w http.ResponseWriter, r *http.Request) {
 		`(?i)\s*[\(\[]lirik[\)\]]`,
 		`(?i)\s*[\(\[]lyrics[\)\]]`,
 		`(?i)\s*[\(\[]visualizer[\)\]]`,
+		`(?i)\s*[\(\[]remastered[\)\]]`,
+		`(?i)\s*[\(\[]hd[\)\]]`,
+		`(?i)\s*[\(\[]4k[\)\]]`,
 	}
 	for _, p := range patterns {
 		cleanTitle = regexp.MustCompile(p).ReplaceAllString(cleanTitle, "")
@@ -168,6 +171,21 @@ func handleLyrics(w http.ResponseWriter, r *http.Request) {
 
 	cleanArtist := artist
 	cleanArtist = strings.TrimSuffix(cleanArtist, " - Topic")
+
+	// Strip "Artist - " prefix if title starts with artist name
+	if strings.Contains(cleanTitle, "-") {
+		parts := strings.SplitN(cleanTitle, "-", 2)
+		if len(parts) == 2 {
+			p0 := strings.TrimSpace(parts[0])
+			p1 := strings.TrimSpace(parts[1])
+			if strings.EqualFold(p0, cleanArtist) || strings.EqualFold(p0, artist) {
+				cleanTitle = p1
+			} else if cleanArtist == "" || strings.EqualFold(cleanArtist, "Various Artists") {
+				cleanArtist = p0
+				cleanTitle = p1
+			}
+		}
+	}
 
 	// Try querying LRCLIB
 	lrclibURL := fmt.Sprintf("https://lrclib.net/api/search?track_name=%s&artist_name=%s",
@@ -199,7 +217,15 @@ func handleLyrics(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if len(items) > 0 {
-		_ = json.NewEncoder(w).Encode(items[0])
+		// Pick item with syncedLyrics first
+		bestItem := items[0]
+		for _, item := range items {
+			if sl, ok := item["syncedLyrics"].(string); ok && sl != "" {
+				bestItem = item
+				break
+			}
+		}
+		_ = json.NewEncoder(w).Encode(bestItem)
 		return
 	}
 

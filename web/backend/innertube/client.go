@@ -382,33 +382,36 @@ func (c *Client) Search(query string) ([]Song, error) {
 
 	var topics []Song
 	var others []Song
+	var longVideos []Song
 	seenIDs := make(map[string]bool)
 
-	for _, s := range ytmSongs {
+	filterSong := func(s Song) {
 		if seenIDs[s.ID] {
-			continue
+			return
 		}
 		seenIDs[s.ID] = true
-		if s.IsTopic {
+		// Filter out 1h+ bootleg compilations that often have copyright strikes
+		if s.Duration > 900 {
+			longVideos = append(longVideos, s)
+		} else if s.IsTopic {
 			topics = append(topics, s)
 		} else {
 			others = append(others, s)
 		}
+	}
+
+	for _, s := range ytmSongs {
+		filterSong(s)
 	}
 
 	for _, s := range webSongs {
-		if seenIDs[s.ID] {
-			continue
-		}
-		seenIDs[s.ID] = true
-		if s.IsTopic {
-			topics = append(topics, s)
-		} else {
-			others = append(others, s)
-		}
+		filterSong(s)
 	}
 
 	all := append(topics, others...)
+	if len(all) < 10 {
+		all = append(all, longVideos...)
+	}
 	if len(all) > 0 {
 		return all, nil
 	}
@@ -521,6 +524,23 @@ func parseVideoRenderer(vr map[string]interface{}) *Song {
 	if lenObj, ok := vr["lengthText"].(map[string]interface{}); ok {
 		durationText, _ = lenObj["simpleText"].(string)
 		durationSec = parseDuration(durationText)
+	}
+	if durationSec == 0 {
+		if overlays, ok := vr["thumbnailOverlays"].([]interface{}); ok {
+			for _, o := range overlays {
+				if oMap, ok := o.(map[string]interface{}); ok {
+					if tsr, ok := oMap["thumbnailOverlayTimeStatusRenderer"].(map[string]interface{}); ok {
+						if txtObj, ok := tsr["text"].(map[string]interface{}); ok {
+							if st, ok := txtObj["simpleText"].(string); ok {
+								durationText = st
+								durationSec = parseDuration(st)
+								break
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	thumbnail := ""
@@ -706,9 +726,13 @@ func parseMusicResponsiveListItem(item map[string]interface{}, query string) *So
 
 			if isArtist && artist == "" {
 				artist = txt
-			} else if strings.Contains(txt, ":") && len(txt) <= 8 && durationText == "" {
-				durationText = txt
-				durationSec = parseDuration(txt)
+			} else if durationSec == 0 && (strings.Contains(txt, ":") || strings.Contains(txt, ".")) && len(txt) <= 12 {
+				d := parseDuration(txt)
+				if d > 0 {
+					durationText = txt
+					durationSec = d
+					continue
+				}
 			} else if artist == "" && !strings.Contains(txt, ":") {
 				artist = txt
 			} else if album == "" && !strings.Contains(txt, ":") && txt != artist {
@@ -818,17 +842,27 @@ func extractRunsFromFlexColumn(col interface{}) []string {
 }
 
 func parseDuration(timeStr string) int {
-	norm := strings.ReplaceAll(timeStr, ".", ":")
+	clean := strings.TrimSpace(timeStr)
+	for _, c := range clean {
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+			return 0
+		}
+	}
+	norm := strings.ReplaceAll(clean, ".", ":")
 	parts := strings.Split(norm, ":")
 	if len(parts) == 2 {
-		m, _ := strconv.Atoi(parts[0])
-		s, _ := strconv.Atoi(parts[1])
-		return m*60 + s
+		m, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
+		s, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
+		if err1 == nil && err2 == nil {
+			return m*60 + s
+		}
 	} else if len(parts) == 3 {
-		h, _ := strconv.Atoi(parts[0])
-		m, _ := strconv.Atoi(parts[1])
-		s, _ := strconv.Atoi(parts[2])
-		return h*3600 + m*60 + s
+		h, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
+		m, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
+		s, err3 := strconv.Atoi(strings.TrimSpace(parts[2]))
+		if err1 == nil && err2 == nil && err3 == nil {
+			return h*3600 + m*60 + s
+		}
 	}
 	return 0
 }
