@@ -155,6 +155,6 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            release-artifacts/**/*
+            release-artifacts/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
