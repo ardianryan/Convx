@@ -32,9 +32,10 @@ type DesktopSettings struct {
 }
 
 type RelayEntry struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	URL  string `json:"url"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	URL      string `json:"url"`
+	IsActive bool   `json:"isActive"`
 }
 
 var (
@@ -59,6 +60,10 @@ func loadDesktopSettings() {
 	if err == nil {
 		_ = json.Unmarshal(data, &currentSettings)
 	}
+
+	if currentSettings.ActiveRelay != nil && currentSettings.ActiveRelay.URL != "" {
+		currentSettings.ActiveRelay.IsActive = true
+	}
 }
 
 func saveDesktopSettings() {
@@ -78,6 +83,7 @@ func startLocalServer(port string, ytClient *innertube.Client, audioProxy *proxy
 	// Restore active relay if previously saved
 	settingsMu.RLock()
 	if currentSettings.ActiveRelay != nil && currentSettings.ActiveRelay.URL != "" {
+		currentSettings.ActiveRelay.IsActive = true
 		ytClient.SetRelayURL(currentSettings.ActiveRelay.URL)
 		audioProxy.SetRelayURL(currentSettings.ActiveRelay.URL)
 		log.Printf("[Desktop Server] Restored active relay: %s", currentSettings.ActiveRelay.URL)
@@ -250,9 +256,10 @@ func startLocalServer(port string, ytClient *innertube.Client, audioProxy *proxy
 		}
 
 		newRelay := RelayEntry{
-			ID:   "convx-relay",
-			Name: "Cloudflare Worker Relay",
-			URL:  deployURL,
+			ID:       "convx-relay",
+			Name:     "Cloudflare Worker Relay",
+			URL:      deployURL,
+			IsActive: true,
 		}
 
 		ytClient.SetRelayURL(deployURL)
@@ -315,19 +322,38 @@ func startLocalServer(port string, ytClient *innertube.Client, audioProxy *proxy
 	// Toggle Active Relay
 	mux.HandleFunc("POST /api/relays/toggle", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			Active bool `json:"active"`
+			ID       string `json:"id"`
+			IsActive bool   `json:"isActive"`
+			Active   bool   `json:"active"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
 
+		// Check if request sent isActive (from frontend) or active or if currentState was passed
+		shouldBeActive := body.IsActive || body.Active
+
 		settingsMu.Lock()
-		if !body.Active {
-			currentSettings.ActiveRelay = nil
-			ytClient.SetRelayURL("")
-			audioProxy.SetRelayURL("")
-		} else if len(currentSettings.Relays) > 0 {
-			currentSettings.ActiveRelay = &currentSettings.Relays[0]
-			ytClient.SetRelayURL(currentSettings.ActiveRelay.URL)
-			audioProxy.SetRelayURL(currentSettings.ActiveRelay.URL)
+		if len(currentSettings.Relays) > 0 {
+			currentSettings.Relays[0].IsActive = shouldBeActive
+			if shouldBeActive {
+				currentSettings.ActiveRelay = &currentSettings.Relays[0]
+				currentSettings.ActiveRelay.IsActive = true
+				ytClient.SetRelayURL(currentSettings.ActiveRelay.URL)
+				audioProxy.SetRelayURL(currentSettings.ActiveRelay.URL)
+			} else {
+				currentSettings.ActiveRelay = &currentSettings.Relays[0]
+				currentSettings.ActiveRelay.IsActive = false
+				ytClient.SetRelayURL("")
+				audioProxy.SetRelayURL("")
+			}
+		} else if currentSettings.ActiveRelay != nil {
+			currentSettings.ActiveRelay.IsActive = shouldBeActive
+			if shouldBeActive {
+				ytClient.SetRelayURL(currentSettings.ActiveRelay.URL)
+				audioProxy.SetRelayURL(currentSettings.ActiveRelay.URL)
+			} else {
+				ytClient.SetRelayURL("")
+				audioProxy.SetRelayURL("")
+			}
 		}
 		activeRelay := currentSettings.ActiveRelay
 		settingsMu.Unlock()
@@ -421,9 +447,10 @@ func startLocalServer(port string, ytClient *innertube.Client, audioProxy *proxy
 			deployURL, err := deployCloudflareRelayWorker(body.CFAccountID, body.CFApiToken, body.CFProjectName)
 			if err == nil && deployURL != "" {
 				newRelay := RelayEntry{
-					ID:   "convx-relay",
-					Name: "Cloudflare Worker Relay",
-					URL:  deployURL,
+					ID:       "convx-relay",
+					Name:     "Cloudflare Worker Relay",
+					URL:      deployURL,
+					IsActive: true,
 				}
 				ytClient.SetRelayURL(deployURL)
 				audioProxy.SetRelayURL(deployURL)
@@ -441,8 +468,10 @@ func startLocalServer(port string, ytClient *innertube.Client, audioProxy *proxy
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":       "ok",
-			"platformName": currentSettings.PlatformName,
+			"status":        "ok",
+			"isInitialized": true,
+			"isLoggedIn":    true,
+			"platformName":  currentSettings.PlatformName,
 			"user": map[string]string{
 				"name":     currentSettings.UserName,
 				"username": currentSettings.Username,
@@ -459,10 +488,20 @@ func startLocalServer(port string, ytClient *innertube.Client, audioProxy *proxy
 	})
 
 	mux.HandleFunc("GET /api/auth/me", func(w http.ResponseWriter, r *http.Request) {
+		settingsMu.RLock()
+		defer settingsMu.RUnlock()
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"status": "ok",
-			"user":   map[string]string{"username": "admin", "role": "admin"},
+			"status":        "ok",
+			"isInitialized": true,
+			"isLoggedIn":    true,
+			"platformName":  currentSettings.PlatformName,
+			"user": map[string]string{
+				"name":     currentSettings.UserName,
+				"username": currentSettings.Username,
+			},
+			"activeRelay": currentSettings.ActiveRelay,
 		})
 	})
 

@@ -224,10 +224,11 @@
       const res = await fetch(getApiUrl('/api/auth/me'));
       if (res.ok) {
         const data = await res.json();
-        isInitialized = !!data.isInitialized;
-        isAuthenticated = !!data.isLoggedIn;
-        currentUser = data.user || null;
-        platformName = data.platformName || 'Convx Music';
+        const localInit = typeof localStorage !== 'undefined' ? localStorage.getItem('convx_initialized') : null;
+        isInitialized = data.isInitialized !== undefined ? !!data.isInitialized : (localInit === 'true' || true);
+        isAuthenticated = data.isLoggedIn !== undefined ? !!data.isLoggedIn : true;
+        currentUser = data.user || JSON.parse(localStorage?.getItem('convx_user') || '{"name":"Ryan Ardian","username":"desktop"}');
+        platformName = data.platformName || localStorage?.getItem('convx_platform_name') || 'Convx Music';
         activeRelay = data.activeRelay || null;
       } else {
         const localInit = typeof localStorage !== 'undefined' ? localStorage.getItem('convx_initialized') : null;
