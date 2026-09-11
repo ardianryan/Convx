@@ -25,10 +25,11 @@ Convx is a multi-platform music streaming monorepo:
 
 ## 2. Mandatory Coding Rules & Constraints
 
-### Rule 1: Single Source of Truth for UI
+### Rule 1: Single Source of Truth for UI & Embed Asset Sync
 - **NEVER** build or duplicate UI code inside `desktop/`. 
 - All UI features, components, and pages **MUST** be written inside `web/frontend/`.
 - `desktop/` only contains Wails native options (`main.go`), Wails JS bindings (`app.go`), pre-flight checks (`wizard/`), and OS build configs (`wails.json`, `build/`).
+- `desktop/main.go` embeds `frontend/dist`. During CI or manual builds, `web/frontend/dist` **MUST** be copied into `desktop/frontend/dist` before invoking `wails build` so `go:embed` embeds the actual `index.html` and assets.
 
 ### Rule 2: CI/CD Packaging Tooling
 - In `.github/workflows/desktop-release.yml`:

@@ -62,6 +62,9 @@ jobs:
           cd web/frontend
           npm ci
           npm run build
+          mkdir -p ../../desktop/frontend
+          rm -rf ../../desktop/frontend/dist
+          cp -r dist ../../desktop/frontend/
 
       - name: Generate PPTI MangoTek Code Signing Certificates
         run: |
