@@ -89,7 +89,7 @@ jobs:
           cd desktop/build/bin
           cp ../../../scripts/certs/ppti-mangotek-rootca.crt .
           cp ../../../scripts/certs/install-trust.bat .
-          zip -r Convx-Windows-x64.zip convx-desktop.exe ppti-mangotek-rootca.crt install-trust.bat
+          7z a Convx-Windows-x64.zip convx-desktop.exe ppti-mangotek-rootca.crt install-trust.bat
 
       - name: Package & Sign macOS Bundle
         if: matrix.os == 'macos-latest'
