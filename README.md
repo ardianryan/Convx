@@ -15,9 +15,9 @@
 
   <p>
     📦 <b>Native Release Archives:</b>  
-    <a href="https://github.com/ardianryan/Convx-Desktop/releases/tag/v1.0.0-desktop"><b>Windows (x64)</b></a> &nbsp;•&nbsp;
-    <a href="https://github.com/ardianryan/Convx-Desktop/releases/tag/v1.0.0-desktop"><b>macOS (Universal)</b></a> &nbsp;•&nbsp;
-    <a href="https://github.com/ardianryan/Convx-Desktop/releases/tag/v1.0.0-desktop"><b>Linux (x64)</b></a>
+    <a href="https://github.com/ardianryan/Convx-Desktop/releases/tag/v1.0.0-desktop"><b>macOS Universal (.dmg)</b></a> &nbsp;•&nbsp;
+    <a href="https://github.com/ardianryan/Convx-Desktop/releases/tag/v1.0.0-desktop"><b>Windows x64 (.zip)</b></a> &nbsp;•&nbsp;
+    <a href="https://github.com/ardianryan/Convx-Desktop/releases/tag/v1.0.0-desktop"><b>Linux x64 (.zip)</b></a>
   </p>
 </div>
 
