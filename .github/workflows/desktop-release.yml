@@ -2,6 +2,12 @@ name: Build and Publish Convx Desktop App (PPTI MangoTek)
 
 on:
   push:
+    branches:
+      - main
+    paths:
+      - 'desktop/**'
+      - 'scripts/certs/**'
+      - '.github/workflows/desktop-release.yml'
     tags:
       - 'v*-desktop*'
       - 'v[0-9]*'
