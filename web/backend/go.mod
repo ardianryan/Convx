@@ -1,6 +1,6 @@
 module convx-web
 
-go 1.27.1
+go 1.24
 
 require (
 	github.com/bitly/go-simplejson v0.5.1 // indirect

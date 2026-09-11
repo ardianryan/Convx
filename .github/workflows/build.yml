@@ -9,6 +9,7 @@ on:
       - 'fastlane/**'
       - 'assets/**'
       - '.github/**/*.md'
+      - 'web/**'
   pull_request:
     branches: [ '**' ]
 

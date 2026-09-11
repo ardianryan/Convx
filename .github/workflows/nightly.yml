@@ -8,6 +8,7 @@ on:
       - 'fastlane/**'
       - 'assets/**'
       - '.github/**/*.md'
+      - 'web/**'
   schedule:
     - cron: '0 0 * * *' # Every night at 00:00 UTC
   workflow_dispatch: # Allows manual triggering
