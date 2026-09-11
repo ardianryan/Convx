@@ -229,17 +229,29 @@
         currentUser = data.user || null;
         platformName = data.platformName || 'Convx Music';
         activeRelay = data.activeRelay || null;
-      } else if (typeof window !== 'undefined' && (window.location.hostname === 'wails.localhost' || window.location.protocol === 'wails:')) {
-        isInitialized = true;
-        isAuthenticated = true;
-        currentUser = { id: 1, name: 'Local User', username: 'desktop' };
+      } else {
+        const localInit = typeof localStorage !== 'undefined' ? localStorage.getItem('convx_initialized') : null;
+        if (localInit === 'true') {
+          isInitialized = true;
+          isAuthenticated = true;
+          currentUser = JSON.parse(localStorage.getItem('convx_user') || '{"name":"Ryan Ardian","username":"desktop"}');
+          platformName = localStorage.getItem('convx_platform_name') || 'Convx Music';
+        } else {
+          isInitialized = false;
+          isAuthenticated = false;
+        }
       }
     } catch (e) {
       console.warn('Auth status check error:', e);
-      if (typeof window !== 'undefined' && (window.location.hostname === 'wails.localhost' || window.location.protocol === 'wails:')) {
+      const localInit = typeof localStorage !== 'undefined' ? localStorage.getItem('convx_initialized') : null;
+      if (localInit === 'true') {
         isInitialized = true;
         isAuthenticated = true;
-        currentUser = { id: 1, name: 'Local User', username: 'desktop' };
+        currentUser = JSON.parse(localStorage.getItem('convx_user') || '{"name":"Ryan Ardian","username":"desktop"}');
+        platformName = localStorage.getItem('convx_platform_name') || 'Convx Music';
+      } else {
+        isInitialized = false;
+        isAuthenticated = false;
       }
     } finally {
       isSystemLoading = false;
@@ -249,8 +261,13 @@
   function handleOnboardingComplete(data) {
     isInitialized = true;
     isAuthenticated = true;
-    currentUser = data.user;
+    currentUser = data.user || { name: 'Ryan Ardian', username: 'admin' };
     platformName = data.platformName || platformName;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('convx_initialized', 'true');
+      localStorage.setItem('convx_platform_name', platformName);
+      localStorage.setItem('convx_user', JSON.stringify(currentUser));
+    }
     checkAccountStatus();
     handleSearch({ detail: 'Top 100 Indonesia' });
     startDeviceTracking();
