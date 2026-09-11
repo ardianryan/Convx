@@ -121,3 +121,136 @@ input[type="range"] {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ========================================================================== */
+/* APPLE MUSIC SPRING & FLUID ANIMATION SYSTEM                                */
+/* ========================================================================== */
+:root {
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.15);
+  --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-cubic: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* 1. Tab Page Transition Animation */
+@keyframes tabFadeScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.982) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.anim-tab-view {
+  animation: tabFadeScaleIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* 2. Mini Player Dock Slide & Bounce Up */
+@keyframes dockBounceIn {
+  0% {
+    opacity: 0;
+    transform: translateY(48px) scale(0.94);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.anim-dock-in {
+  animation: dockBounceIn 0.45s var(--ease-spring) forwards;
+  will-change: transform, opacity;
+}
+
+/* 3. Fullscreen Player Modal Sheet Slide Up */
+@keyframes sheetSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(100%) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.anim-sheet-up {
+  animation: sheetSlideUp 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* 4. Modal Dialog Scale Up */
+@keyframes modalPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.anim-modal-in {
+  animation: modalPopIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* 5. Smooth Button Hover & Tap Physics */
+.btn-pressable {
+  transition: transform 0.22s var(--ease-spring), background-color 0.2s ease, opacity 0.2s ease, box-shadow 0.22s ease;
+}
+.btn-pressable:hover {
+  transform: translateY(-1.5px);
+}
+.btn-pressable:active {
+  transform: translateY(0.5px) scale(0.965);
+}
+
+/* 6. List Item Stagger Reveal */
+@keyframes listItemFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anim-list-item {
+  animation: listItemFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* 7. Equalizer Fluid Bounce */
+@keyframes eqBounce {
+  0%, 100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.anim-eq-1 {
+  animation: eqBounce 0.85s ease-in-out infinite alternate;
+  transform-origin: bottom;
+}
+.anim-eq-2 {
+  animation: eqBounce 0.65s ease-in-out 0.15s infinite alternate;
+  transform-origin: bottom;
+}
+.anim-eq-3 {
+  animation: eqBounce 0.95s ease-in-out 0.3s infinite alternate;
+  transform-origin: bottom;
+}
+

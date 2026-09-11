@@ -206,7 +206,7 @@
 
 {#if $currentSong}
   <!-- 1. APPLE MUSIC FLOATING GLASS CONTROLLER (Docked above bottom navigation) -->
-  <div class="fixed bottom-[74px] md:bottom-6 left-3 right-3 max-w-lg md:max-w-2xl mx-auto z-40 transition-all duration-300">
+  <div class="fixed bottom-[74px] md:bottom-6 left-3 right-3 max-w-lg md:max-w-2xl mx-auto z-40 anim-dock-in">
     <div
       role="button"
       tabindex="0"
@@ -222,7 +222,7 @@
           setTimeout(() => scrollToActiveLyric(true), 250);
         }
       }}
-      class="relative overflow-hidden rounded-2xl bg-white/90 dark:bg-[#1c1e28]/90 hover:bg-neutral-50/95 dark:hover:bg-[#232634]/95 active:scale-[0.99] backdrop-blur-3xl border border-black/10 dark:border-white/15 p-2 sm:px-3 shadow-[0_16px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.7)] flex items-center justify-between gap-3 cursor-pointer select-none transition-all"
+      class="relative overflow-hidden rounded-2xl bg-white/90 dark:bg-[#1c1e28]/90 hover:bg-neutral-50/95 dark:hover:bg-[#232634]/95 active:scale-[0.985] backdrop-blur-3xl border border-black/10 dark:border-white/15 p-2 sm:px-3 shadow-[0_16px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.7)] flex items-center justify-between gap-3 cursor-pointer select-none transition-all duration-300 hover:-translate-y-0.5"
     >
       <!-- Top 2px Progress Line (Apple Music signature) -->
       <div class="absolute top-0 left-0 right-0 h-[2px] bg-black/5 dark:bg-white/10">
@@ -234,11 +234,11 @@
 
       <!-- Left: Squircle Artwork & Song Details -->
       <div class="flex items-center gap-3 min-w-0 flex-1">
-        <div class="relative w-11 h-11 rounded-xl overflow-hidden bg-neutral-200 dark:bg-slate-900 flex-shrink-0 shadow-md border border-black/5 dark:border-white/10">
+        <div class="relative w-11 h-11 rounded-xl overflow-hidden bg-neutral-200 dark:bg-slate-900 flex-shrink-0 shadow-md border border-black/5 dark:border-white/10 group">
           <img
             src={$currentSong.thumbnail}
             alt={$currentSong.title}
-            class="w-full h-full object-cover"
+            class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
           />
           {#if $isLoading}
             <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -248,9 +248,16 @@
         </div>
         
         <div class="min-w-0 flex-1">
-          <h4 class="text-xs sm:text-sm font-semibold text-neutral-900 dark:text-white truncate leading-tight">
-            {$currentSong.title}
-          </h4>
+          <div class="flex items-center gap-1.5">
+            <h4 class="text-xs sm:text-sm font-semibold truncate text-neutral-900 dark:text-white">
+              {$currentSong.title}
+            </h4>
+            {#if $currentSong.isTopic}
+              <span class="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-[#fa2d48]/20 text-[#ff7588] border border-[#fa2d48]/30 shrink-0">
+                TOPIC
+              </span>
+            {/if}
+          </div>
           <p class="text-[11px] text-neutral-500 dark:text-white/50 truncate mt-0.5">
             {$currentSong.artist}
           </p>
@@ -258,28 +265,36 @@
       </div>
 
       <!-- Right: Touch Controls (Apple native style) -->
-      <div class="flex items-center gap-1 shrink-0" on:click|stopPropagation on:keydown|stopPropagation role="toolbar">
+      <div class="flex items-center gap-1 shrink-0" on:click|stopPropagation on:keydown|stopPropagation role="toolbar" tabindex="0">
         <button
           type="button"
           on:click={togglePlay}
-          disabled={$isLoading}
-          class="w-10 h-10 rounded-full flex items-center justify-center text-neutral-900 dark:text-white active:scale-90 transition-transform hover:bg-black/5 dark:hover:bg-white/10"
+          class="w-9 h-9 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 flex items-center justify-center shadow-md active:scale-90 transition-all btn-pressable cursor-pointer"
           title={$isPlaying ? 'Jeda' : 'Putar'}
         >
           {#if $isPlaying}
-            <Pause class="w-5 h-5 fill-current" />
+            <Pause class="w-4 h-4 fill-current" />
           {:else}
-            <Play class="w-5 h-5 fill-current ml-0.5" />
+            <Play class="w-4 h-4 fill-current ml-0.5" />
           {/if}
         </button>
 
         <button
           type="button"
           on:click={playNext}
-          class="w-10 h-10 rounded-full flex items-center justify-center text-neutral-600 dark:text-white/70 hover:text-neutral-900 dark:hover:text-white active:scale-90 transition-transform hover:bg-black/5 dark:hover:bg-white/10"
+          class="w-8 h-8 rounded-full flex items-center justify-center text-neutral-600 dark:text-white/80 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all btn-pressable cursor-pointer"
           title="Lagu Berikutnya"
         >
-          <SkipForward class="w-5 h-5 fill-current" />
+          <SkipForward class="w-4 h-4 fill-current" />
+        </button>
+
+        <button
+          type="button"
+          on:click={() => (showQueue = true)}
+          class="w-8 h-8 rounded-full flex items-center justify-center text-neutral-600 dark:text-white/80 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all btn-pressable cursor-pointer hidden sm:flex"
+          title="Antrean"
+        >
+          <ListMusic class="w-4 h-4" />
         </button>
       </div>
     </div>
@@ -290,7 +305,7 @@
     <div
       role="dialog"
       aria-modal="true"
-      class="fixed inset-0 z-50 bg-[#090a10]/95 backdrop-blur-3xl flex flex-col justify-between p-4 sm:p-6 md:p-10 animate-in slide-in-from-bottom duration-300 select-none overflow-hidden"
+      class="fixed inset-0 z-50 bg-[#090a10]/95 backdrop-blur-3xl flex flex-col justify-between p-4 sm:p-6 md:p-10 anim-sheet-up select-none overflow-hidden"
     >
       <!-- Background Ambient Blur derived from album -->
       <div class="absolute inset-0 pointer-events-none -z-10 overflow-hidden opacity-30">
@@ -716,7 +731,7 @@
   {#if showQueue}
     <div
       role="presentation"
-      class="fixed inset-0 bg-black/70 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+      class="fixed inset-0 bg-black/70 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all duration-300"
       on:click={() => (showQueue = false)}
       on:keydown={(e) => e.key === 'Escape' && (showQueue = false)}
     >
@@ -724,7 +739,7 @@
         role="dialog"
         aria-modal="true"
         tabindex="-1"
-        class="bg-[#12141e] border border-white/15 w-full sm:max-w-lg max-h-[80vh] rounded-t-3xl sm:rounded-3xl p-5 flex flex-col gap-4 shadow-2xl overflow-hidden"
+        class="bg-[#12141e]/95 backdrop-blur-2xl border border-white/15 w-full sm:max-w-lg max-h-[80vh] rounded-t-3xl sm:rounded-3xl p-5 flex flex-col gap-4 shadow-2xl overflow-hidden anim-modal-in"
         on:click|stopPropagation
         on:keydown|stopPropagation
       >

@@ -44,26 +44,26 @@
           tabindex="0"
           on:click={() => handlePlay(track)}
           on:keydown={(e) => e.key === 'Enter' && handlePlay(track)}
-          class="flex items-center justify-between gap-3 px-3 py-2.5 sm:px-4 sm:py-3 hover:bg-black/[0.03] dark:hover:bg-white/[0.07] active:bg-black/[0.06] dark:active:bg-white/[0.1] transition-all cursor-pointer select-none group relative {isCurrent ? 'bg-black/[0.04] dark:bg-white/[0.08]' : ''}"
+          class="flex items-center justify-between gap-3 px-3 py-2.5 sm:px-4 sm:py-3 hover:bg-black/[0.04] dark:hover:bg-white/[0.08] active:bg-black/[0.07] dark:active:bg-white/[0.12] transition-all duration-200 cursor-pointer select-none group relative {isCurrent ? 'bg-black/[0.04] dark:bg-white/[0.08]' : ''}"
         >
           <!-- Left: Artwork & Playing Equalizer -->
           <div class="relative w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-[#161822] shadow-sm border border-black/10 dark:border-white/10">
             <img
               src={track.thumbnail}
               alt={track.title}
-              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              class="w-full h-full object-cover group-hover:scale-108 transition-transform duration-300"
               loading="lazy"
             />
             
             <!-- Playing Animated Equalizer Overlay -->
             {#if isCurrent}
-              <div class="absolute inset-0 bg-black/65 flex items-center justify-center gap-[2px]">
+              <div class="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-end justify-center pb-2.5 gap-[3px]">
                 {#if $isPlaying}
-                  <span class="w-[2.5px] h-3 bg-[#fa2d48] rounded-full animate-[bounce_0.8s_ease-in-out_infinite]"></span>
-                  <span class="w-[2.5px] h-4 bg-[#ff6480] rounded-full animate-[bounce_1.1s_ease-in-out_infinite_0.2s]"></span>
-                  <span class="w-[2.5px] h-2.5 bg-[#fa2d48] rounded-full animate-[bounce_0.9s_ease-in-out_infinite_0.4s]"></span>
+                  <span class="w-[3px] h-4 bg-[#fa2d48] rounded-full anim-eq-1"></span>
+                  <span class="w-[3px] h-5 bg-[#ff6480] rounded-full anim-eq-2"></span>
+                  <span class="w-[3px] h-3.5 bg-[#fa2d48] rounded-full anim-eq-3"></span>
                 {:else}
-                  <Pause class="w-4 h-4 text-white fill-white" />
+                  <Pause class="w-4 h-4 text-white fill-white mb-1" />
                 {/if}
               </div>
             {/if}

@@ -114,7 +114,7 @@
 {#if isOpen}
   <!-- Backdrop -->
   <div
-    class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+    class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 transition-all duration-300"
     on:click|self={onClose}
     on:keydown={(e) => e.key === 'Escape' && onClose()}
     tabindex="-1"
@@ -122,7 +122,7 @@
   >
     <!-- Modal Card -->
     <div
-      class="glass-panel border border-white/15 rounded-3xl w-full max-w-lg p-6 md:p-8 flex flex-col gap-5 shadow-2xl relative animate-in zoom-in-95 duration-200 text-slate-200"
+      class="glass-panel border border-white/15 rounded-3xl w-full max-w-lg p-6 md:p-8 flex flex-col gap-5 shadow-2xl relative anim-modal-in text-slate-200"
     >
       <!-- Close Button -->
       <button

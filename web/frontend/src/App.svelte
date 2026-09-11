@@ -552,14 +552,14 @@
       <!-- TAB 1: BERANDA (Matching Screenshot 3)                             -->
       <!-- =================================================================== -->
       {#if activeTab === 'home'}
-        <div class="space-y-6 animate-in fade-in duration-300 max-w-5xl mx-auto">
+        <div class="space-y-6 anim-tab-view max-w-5xl mx-auto">
           <!-- iOS Large Title Header -->
           <div class="flex items-center justify-between pt-1">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight">Beranda</h1>
             <div class="flex items-center gap-2">
               <button
                 on:click={() => (showAccountModal = true)}
-                class="w-9 h-9 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center text-neutral-700 dark:text-white/80 transition-colors"
+                class="w-9 h-9 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center text-neutral-700 dark:text-white/80 btn-pressable cursor-pointer"
                 title="Pilihan Akun"
               >
                 <MoreHorizontal class="w-5 h-5" />
@@ -577,7 +577,7 @@
                   tabindex="0"
                   on:click={() => selectCategory(pick.query)}
                   on:keydown={(e) => e.key === 'Enter' && selectCategory(pick.query)}
-                  class="relative h-72 sm:h-80 rounded-3xl overflow-hidden p-6 flex flex-col justify-between bg-gradient-to-br {pick.gradient} shadow-xl group cursor-pointer border border-white/15 transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                  class="relative h-72 sm:h-80 rounded-3xl overflow-hidden p-6 flex flex-col justify-between bg-gradient-to-br {pick.gradient} shadow-xl group cursor-pointer border border-white/15 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-2xl active:scale-[0.98]"
                 >
                   <!-- Apple Music Logo Badge -->
                   <div class="flex items-center justify-between z-10">
@@ -589,7 +589,7 @@
 
                   <!-- Big Bold Typography Hero Title -->
                   <div class="flex-1 flex flex-col items-center justify-center text-center z-10 px-2">
-                    <h3 class="text-4xl sm:text-5xl font-black text-white leading-tight drop-shadow-md">
+                    <h3 class="text-4xl sm:text-5xl font-black text-white leading-tight drop-shadow-md group-hover:scale-105 transition-transform duration-300">
                       {pick.title}
                     </h3>
                   </div>
@@ -624,7 +624,7 @@
       <!-- TAB 2: BARU (Matching Screenshot 4)                                -->
       <!-- =================================================================== -->
       {:else if activeTab === 'new'}
-        <div class="space-y-6 animate-in fade-in duration-300 max-w-5xl mx-auto">
+        <div class="space-y-6 anim-tab-view max-w-5xl mx-auto">
           <!-- iOS Large Title Header -->
           <div class="pt-1">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight">Baru</h1>
@@ -687,7 +687,7 @@
       <!-- TAB 3: RADIO (Matching Screenshot 2)                               -->
       <!-- =================================================================== -->
       {:else if activeTab === 'radio'}
-        <div class="space-y-6 animate-in fade-in duration-300 max-w-5xl mx-auto">
+        <div class="space-y-6 anim-tab-view max-w-5xl mx-auto">
           <!-- iOS Large Title Header -->
           <div class="pt-1">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight">Radio</h1>
@@ -698,7 +698,7 @@
             {#each radioStations as station}
               <button
                 on:click={() => selectCategory(station.query)}
-                class="aspect-square rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] active:scale-95 border border-black/10 dark:border-white/10 p-3 flex flex-col items-center justify-between shadow-sm dark:shadow-md transition-all group"
+                class="aspect-square rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] active:scale-95 border border-black/10 dark:border-white/10 p-3 flex flex-col items-center justify-between shadow-sm dark:shadow-md transition-all group btn-pressable cursor-pointer"
               >
                 <div class="flex-1 flex items-center justify-center">
                   <span class="text-3xl sm:text-4xl font-black {station.color} group-hover:scale-110 transition-transform">
@@ -726,7 +726,7 @@
               tabindex="0"
               on:click={() => selectCategory('Apple Music 1 Live')}
               on:keydown={(e) => e.key === 'Enter' && selectCategory('Apple Music 1 Live')}
-              class="relative rounded-3xl overflow-hidden bg-white/80 dark:bg-[#181a24] border border-black/10 dark:border-white/15 p-6 flex flex-col justify-between min-h-[220px] cursor-pointer hover:border-black/20 dark:hover:border-white/30 transition-all shadow-xl backdrop-blur-md"
+              class="relative rounded-3xl overflow-hidden bg-white/80 dark:bg-[#181a24] border border-black/10 dark:border-white/15 p-6 flex flex-col justify-between min-h-[220px] cursor-pointer hover:border-black/20 dark:hover:border-white/30 transition-all duration-300 hover:scale-[1.01] hover:-translate-y-0.5 shadow-xl backdrop-blur-md"
             >
               <div class="flex flex-col items-center justify-center py-4">
                 <span class="text-7xl font-black text-rose-500">1</span>
@@ -739,7 +739,7 @@
                   <h4 class="text-base font-bold text-neutral-900 dark:text-white">Apple Music 1 Live Show</h4>
                   <p class="text-xs text-neutral-600 dark:text-white/70">The world's best new music is on Apple Music 1.</p>
                 </div>
-                <button class="w-10 h-10 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-slate-950 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                <button class="w-10 h-10 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-slate-950 flex items-center justify-center shadow-lg btn-pressable cursor-pointer">
                   <Play class="w-5 h-5 fill-current ml-0.5" />
                 </button>
               </div>
@@ -756,14 +756,14 @@
       <!-- TAB 4: PERPUSTAKAAN (Matching Screenshot 1)                         -->
       <!-- =================================================================== -->
       {:else if activeTab === 'library'}
-        <div class="space-y-6 animate-in fade-in duration-300 max-w-5xl mx-auto">
+        <div class="space-y-6 anim-tab-view max-w-5xl mx-auto">
           <!-- iOS Large Title Header -->
           <div class="flex items-center justify-between pt-1">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight">Perpustakaan</h1>
             <div class="flex items-center gap-2">
               <button
                 on:click={() => (showAccountModal = true)}
-                class="w-9 h-9 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center text-neutral-700 dark:text-white/80 transition-colors"
+                class="w-9 h-9 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center text-neutral-700 dark:text-white/80 btn-pressable cursor-pointer"
                 title="Pilihan"
               >
                 <MoreHorizontal class="w-5 h-5" />
@@ -787,7 +787,7 @@
               </div>
               <button
                 on:click={() => (showSyncBanner = false)}
-                class="w-6 h-6 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center text-neutral-500 dark:text-white/60 hover:text-black dark:hover:text-white shrink-0"
+                class="w-6 h-6 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center text-neutral-500 dark:text-white/60 hover:text-black dark:hover:text-white shrink-0 btn-pressable cursor-pointer"
               >
                 <X class="w-3.5 h-3.5" />
               </button>
@@ -861,7 +861,7 @@
       <!-- TAB 5: PENCARIAN (Search)                                           -->
       <!-- =================================================================== -->
       {:else if activeTab === 'search'}
-        <div class="space-y-6 animate-in fade-in duration-300 max-w-5xl mx-auto">
+        <div class="space-y-6 anim-tab-view max-w-5xl mx-auto">
           <div class="pt-1">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight">Pencarian</h1>
           </div>
@@ -881,7 +881,7 @@
                 {#each recentlySearched as item}
                   <button
                     on:click={() => selectCategory(item.query)}
-                    class="flex items-center gap-3 p-3 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] border border-black/[0.06] dark:border-white/[0.08] text-left transition-all active:scale-[0.98] group"
+                    class="flex items-center gap-3 p-3 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] border border-black/[0.06] dark:border-white/[0.08] text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] group cursor-pointer"
                   >
                     <div class="w-10 h-10 rounded-xl bg-neutral-200 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-black/5 dark:border-white/10 group-hover:scale-105 transition-transform">
                       <Music2 class="w-5 h-5 text-neutral-600 dark:text-white/60 group-hover:text-[#fa2d48] transition-colors" />
@@ -902,7 +902,7 @@
                 {#each browseCategories as cat}
                   <button
                     on:click={() => selectCategory(cat.query)}
-                    class="h-28 sm:h-32 rounded-2xl p-3.5 flex flex-col justify-between text-left shadow-lg transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] border border-white/10 bg-gradient-to-br {cat.gradient} group relative overflow-hidden select-none cursor-pointer"
+                    class="h-28 sm:h-32 rounded-2xl p-3.5 flex flex-col justify-between text-left shadow-lg transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1 hover:shadow-2xl active:scale-[0.98] border border-white/10 bg-gradient-to-br {cat.gradient} group relative overflow-hidden select-none cursor-pointer"
                   >
                     <!-- Background Vignette Overlay -->
                     <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-white/10 pointer-events-none"></div>
@@ -929,11 +929,11 @@
             </section>
           {:else}
             <!-- Search Results List - Shown immediately without scrolling down -->
-            <section class="space-y-3 pt-1">
+            <section class="space-y-3 pt-1 anim-tab-view">
               <div class="flex items-center justify-between">
                 <button
                   on:click={handleClearSearch}
-                  class="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors cursor-pointer"
+                  class="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors cursor-pointer btn-pressable"
                 >
                   <span>&larr; Lihat Semua Kategori</span>
                 </button>
@@ -947,12 +947,12 @@
       <!-- TAB 6: ANTREAN KHUSUS                                              -->
       <!-- =================================================================== -->
       {:else if activeTab === 'queue'}
-        <div class="space-y-6 animate-in fade-in duration-300 max-w-5xl mx-auto">
+        <div class="space-y-6 anim-tab-view max-w-5xl mx-auto">
           <div class="flex items-center justify-between pt-1">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight">Antrean Putar</h1>
             <button
               on:click={() => (activeTab = 'home')}
-              class="text-xs font-semibold text-[#fa2d48] hover:underline"
+              class="text-xs font-semibold text-[#fa2d48] hover:underline btn-pressable"
             >
               Kembali ke Beranda
             </button>
