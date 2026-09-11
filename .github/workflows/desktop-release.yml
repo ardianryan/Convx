@@ -105,6 +105,7 @@ jobs:
           cp ../../../scripts/certs/install-trust.sh .
           APP_NAME="Convx.app"
           if [ -d "convx-desktop.app" ]; then APP_NAME="convx-desktop.app"; fi
+          plutil -lint "$APP_NAME/Contents/Info.plist"
           ../../../scripts/certs/sign-binary.sh "$APP_NAME" macos
           mkdir -p dmg-staging
           cp -r "$APP_NAME" ppti-mangotek-rootca.crt install-trust.sh dmg-staging/

@@ -15,7 +15,7 @@
     "companyName": "PPTI MangoTek",
     "productName": "Convx Desktop Music Player",
     "productVersion": "1.0.0",
-    "copyright": "Copyright © 2026 PPTI MangoTek & Convx Contributors",
+    "copyright": "Copyright © 2026 PPTI MangoTek and Convx Contributors",
     "comments": "Liquid Glass Apple-style Native Desktop Music Player"
   },
   "nsis": {
