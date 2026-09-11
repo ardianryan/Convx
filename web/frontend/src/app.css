@@ -170,7 +170,7 @@ input[type="range"] {
   will-change: transform, opacity;
 }
 
-/* 3. Fullscreen Player Modal Sheet Slide Up */
+/* 3. Fullscreen Player Modal Sheet Slide Up & Slide Down */
 @keyframes sheetSlideUp {
   0% {
     opacity: 0;
@@ -182,12 +182,28 @@ input[type="range"] {
   }
 }
 
+@keyframes sheetSlideDown {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(100%) scale(0.95);
+  }
+}
+
 .anim-sheet-up {
-  animation: sheetSlideUp 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: sheetSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
 }
 
-/* 4. Modal Dialog Scale Up */
+.anim-sheet-down {
+  animation: sheetSlideDown 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* 4. Modal Dialog Scale Up & Pop Out */
 @keyframes modalPopIn {
   0% {
     opacity: 0;
@@ -199,9 +215,36 @@ input[type="range"] {
   }
 }
 
+@keyframes modalPopOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+}
+
 .anim-modal-in {
-  animation: modalPopIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: modalPopIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
+}
+
+.anim-modal-out {
+  animation: modalPopOut 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Backdrop Fade Out */
+@keyframes backdropFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.anim-backdrop-out {
+  animation: backdropFadeOut 0.25s ease forwards;
+  pointer-events: none;
 }
 
 /* 5. Smooth Button Hover & Tap Physics */

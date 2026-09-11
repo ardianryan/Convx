@@ -102,6 +102,17 @@
     }
   }
 
+  let isClosing = false;
+
+  function handleClose() {
+    if (isClosing) return;
+    isClosing = true;
+    setTimeout(() => {
+      onClose();
+      isClosing = false;
+    }, 220);
+  }
+
   function copyQuickScript() {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(quickScript);
@@ -114,20 +125,20 @@
 {#if isOpen}
   <!-- Backdrop -->
   <div
-    class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 transition-all duration-300"
-    on:click|self={onClose}
-    on:keydown={(e) => e.key === 'Escape' && onClose()}
+    class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 transition-all duration-300 {isClosing ? 'anim-backdrop-out' : ''}"
+    on:click|self={handleClose}
+    on:keydown={(e) => e.key === 'Escape' && handleClose()}
     tabindex="-1"
     role="dialog"
   >
     <!-- Modal Card -->
     <div
-      class="glass-panel border border-white/15 rounded-3xl w-full max-w-lg p-6 md:p-8 flex flex-col gap-5 shadow-2xl relative anim-modal-in text-slate-200"
+      class="glass-panel border border-white/15 rounded-3xl w-full max-w-lg p-6 md:p-8 flex flex-col gap-5 shadow-2xl relative text-slate-200 {isClosing ? 'anim-modal-out' : 'anim-modal-in'}"
     >
       <!-- Close Button -->
       <button
-        class="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
-        on:click={onClose}
+        class="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all btn-pressable cursor-pointer"
+        on:click={handleClose}
         aria-label="Tutup"
       >
         <X class="w-5 h-5" />

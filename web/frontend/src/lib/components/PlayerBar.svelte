@@ -35,10 +35,30 @@
   } from '../stores/player.js';
 
   let isExpanded = false;
+  let isClosingSheet = false;
   let showQueue = false;
+  let isClosingQueue = false;
   let showLyrics = true; // Default to true so lyrics are shown immediately on mobile & desktop
   let isMuted = false;
   let prevVolume = 0.85;
+
+  function closeSheet() {
+    if (isClosingSheet) return;
+    isClosingSheet = true;
+    setTimeout(() => {
+      isExpanded = false;
+      isClosingSheet = false;
+    }, 280);
+  }
+
+  function closeQueue() {
+    if (isClosingQueue) return;
+    isClosingQueue = true;
+    setTimeout(() => {
+      showQueue = false;
+      isClosingQueue = false;
+    }, 220);
+  }
 
   // Lyrics state
   let lyricsLoading = false;
@@ -305,7 +325,7 @@
     <div
       role="dialog"
       aria-modal="true"
-      class="fixed inset-0 z-50 bg-[#090a10]/95 backdrop-blur-3xl flex flex-col justify-between p-4 sm:p-6 md:p-10 anim-sheet-up select-none overflow-hidden"
+      class="fixed inset-0 z-50 bg-[#090a10]/95 backdrop-blur-3xl flex flex-col justify-between p-4 sm:p-6 md:p-10 {isClosingSheet ? 'anim-sheet-down' : 'anim-sheet-up'} select-none overflow-hidden"
     >
       <!-- Background Ambient Blur derived from album -->
       <div class="absolute inset-0 pointer-events-none -z-10 overflow-hidden opacity-30">
@@ -321,8 +341,8 @@
         <!-- Close / Minimize Button -->
         <button
           type="button"
-          on:click={() => (isExpanded = false)}
-          class="w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white bg-white/10 hover:bg-white/15 active:scale-90 transition-all"
+          on:click={closeSheet}
+          class="w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white bg-white/10 hover:bg-white/15 active:scale-90 transition-all btn-pressable cursor-pointer"
           title="Tutup"
         >
           <ChevronDown class="w-6 h-6" />
@@ -731,15 +751,15 @@
   {#if showQueue}
     <div
       role="presentation"
-      class="fixed inset-0 bg-black/70 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all duration-300"
-      on:click={() => (showQueue = false)}
-      on:keydown={(e) => e.key === 'Escape' && (showQueue = false)}
+      class="fixed inset-0 bg-black/70 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all duration-300 {isClosingQueue ? 'anim-backdrop-out' : ''}"
+      on:click={closeQueue}
+      on:keydown={(e) => e.key === 'Escape' && closeQueue()}
     >
       <div
         role="dialog"
         aria-modal="true"
         tabindex="-1"
-        class="bg-[#12141e]/95 backdrop-blur-2xl border border-white/15 w-full sm:max-w-lg max-h-[80vh] rounded-t-3xl sm:rounded-3xl p-5 flex flex-col gap-4 shadow-2xl overflow-hidden anim-modal-in"
+        class="bg-[#12141e]/95 backdrop-blur-2xl border border-white/15 w-full sm:max-w-lg max-h-[80vh] rounded-t-3xl sm:rounded-3xl p-5 flex flex-col gap-4 shadow-2xl overflow-hidden {isClosingQueue ? 'anim-modal-out' : 'anim-modal-in'}"
         on:click|stopPropagation
         on:keydown|stopPropagation
       >
@@ -755,7 +775,7 @@
               <button
                 type="button"
                 on:click={clearQueue}
-                class="p-2 text-white/40 hover:text-rose-400 active:scale-90 transition-all"
+                class="p-2 text-white/40 hover:text-rose-400 active:scale-90 transition-all btn-pressable cursor-pointer"
                 title="Bersihkan antrean"
               >
                 <Trash2 class="w-4 h-4" />
@@ -763,8 +783,8 @@
             {/if}
             <button
               type="button"
-              on:click={() => (showQueue = false)}
-              class="p-2 text-white/40 hover:text-white active:scale-90 transition-all"
+              on:click={closeQueue}
+              class="p-2 text-white/40 hover:text-white active:scale-90 transition-all btn-pressable cursor-pointer"
             >
               <X class="w-5 h-5" />
             </button>
