@@ -69,6 +69,7 @@ jobs:
           ./scripts/certs/generate-certs.sh
 
       - name: Build Wails App (${{ matrix.platform }})
+        shell: bash
         run: |
           cd desktop
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
