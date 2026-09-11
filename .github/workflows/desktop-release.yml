@@ -52,7 +52,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev osslsigncode
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev osslsigncode
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
@@ -78,19 +78,27 @@ jobs:
         shell: bash
         run: |
           chmod +x scripts/certs/sign-binary.sh
-          ./scripts/certs/sign-binary.sh desktop/build/bin/convx-desktop.exe windows
+          if [ -f "desktop/build/bin/convx-desktop.exe" ]; then
+            ./scripts/certs/sign-binary.sh desktop/build/bin/convx-desktop.exe windows
+          fi
 
       - name: Package & Sign macOS Bundle
         if: matrix.os == 'macos-latest'
         run: |
           chmod +x scripts/certs/sign-binary.sh
-          ./scripts/certs/sign-binary.sh desktop/build/bin/Convx.app macos
+          if [ -d "desktop/build/bin/convx-desktop.app" ]; then
+            ./scripts/certs/sign-binary.sh desktop/build/bin/convx-desktop.app macos
+          elif [ -d "desktop/build/bin/Convx.app" ]; then
+            ./scripts/certs/sign-binary.sh desktop/build/bin/Convx.app macos
+          fi
 
       - name: Package Linux Artifacts
         if: matrix.os == 'ubuntu-latest'
         run: |
           chmod +x scripts/certs/sign-binary.sh
-          ./scripts/certs/sign-binary.sh desktop/build/bin/convx-desktop linux
+          if [ -f "desktop/build/bin/convx-desktop" ]; then
+            ./scripts/certs/sign-binary.sh desktop/build/bin/convx-desktop linux
+          fi
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4

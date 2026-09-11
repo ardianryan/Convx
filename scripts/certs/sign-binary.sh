@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_FILE="$1"
 OS_TYPE="${2:-auto}"
 
-if [ -z "$TARGET_FILE" ] || [ ! -f "$TARGET_FILE" ]; then
+if [ -z "$TARGET_FILE" ] || [ ! -e "$TARGET_FILE" ]; then
     echo "Usage: $0 <path-to-binary-or-installer> [windows|macos|linux]"
     exit 1
 fi
