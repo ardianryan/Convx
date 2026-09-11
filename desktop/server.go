@@ -22,7 +22,8 @@ import (
 )
 
 type DesktopSettings struct {
-	PlatformName string      `json:"platformName"`
+	IsInitialized bool        `json:"isInitialized"`
+	PlatformName  string      `json:"platformName"`
 	UserName     string      `json:"name"`
 	Username     string      `json:"username"`
 	CFAccountID  string      `json:"cfAccountId"`
@@ -432,6 +433,7 @@ func startLocalServer(port string, ytClient *innertube.Client, audioProxy *proxy
 		_ = json.NewDecoder(r.Body).Decode(&body)
 
 		settingsMu.Lock()
+		currentSettings.IsInitialized = true
 		if body.PlatformName != "" {
 			currentSettings.PlatformName = body.PlatformName
 		}
@@ -494,7 +496,7 @@ func startLocalServer(port string, ytClient *innertube.Client, audioProxy *proxy
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":        "ok",
-			"isInitialized": true,
+			"isInitialized": currentSettings.IsInitialized,
 			"isLoggedIn":    true,
 			"platformName":  currentSettings.PlatformName,
 			"user": map[string]string{
