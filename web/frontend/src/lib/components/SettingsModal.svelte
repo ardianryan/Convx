@@ -22,6 +22,7 @@
     Music,
     Code2
   } from 'lucide-svelte';
+  import { getApiUrl } from '../api.js';
 
   export let isOpen = false;
   export let onClose = () => {};
@@ -74,7 +75,7 @@
     isLoading = true;
     error = '';
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetch(getApiUrl('/api/settings'));
       if (res.ok) {
         const data = await res.json();
         platformName = data.platformName || currentPlatformName;
@@ -102,7 +103,7 @@
       return;
     }
     try {
-      const res = await fetch('/api/settings', {
+      const res = await fetch(getApiUrl('/api/settings'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: userName.trim() }),
@@ -120,7 +121,7 @@
     error = '';
     message = '';
     try {
-      const res = await fetch('/api/settings', {
+      const res = await fetch(getApiUrl('/api/settings'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -149,7 +150,7 @@
     }
 
     try {
-      const res = await fetch('/api/settings', {
+      const res = await fetch(getApiUrl('/api/settings'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newPassword }),
@@ -175,7 +176,7 @@
 
     isDeploying = true;
     try {
-      const res = await fetch('/api/relays/deploy', {
+      const res = await fetch(getApiUrl('/api/relays/deploy'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -205,7 +206,7 @@
     testResult = null;
     try {
       const start = Date.now();
-      const res = await fetch('/api/relays/test', {
+      const res = await fetch(getApiUrl('/api/relays/test'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: activeRelay.url }),
@@ -226,7 +227,7 @@
 
   async function toggleRelayActive(id, currentState) {
     try {
-      const res = await fetch('/api/relays/toggle', {
+      const res = await fetch(getApiUrl('/api/relays/toggle'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, isActive: !currentState }),

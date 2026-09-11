@@ -14,6 +14,8 @@
     Loader2
   } from 'lucide-svelte';
 
+  import { getApiUrl } from '../api.js';
+
   export let isOpen = false;
   export let onClose = () => {};
 
@@ -38,7 +40,7 @@
 
   async function checkStatus() {
     try {
-      const res = await fetch('/api/account/status');
+      const res = await fetch(getApiUrl('/api/account/status'));
       if (res.ok) {
         const data = await res.json();
         isLoggedIn = !!data.isLoggedIn;
@@ -60,7 +62,7 @@
     successMsg = '';
 
     try {
-      const res = await fetch('/api/account/cookie', {
+      const res = await fetch(getApiUrl('/api/account/cookie'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cookie: trimmed }),
@@ -90,7 +92,7 @@
     successMsg = '';
 
     try {
-      const res = await fetch('/api/account/logout', { method: 'POST' });
+      const res = await fetch(getApiUrl('/api/account/logout'), { method: 'POST' });
       if (res.ok) {
         isLoggedIn = false;
         successMsg = 'Cookie telah dihapus. Kembali ke Mode Tamu.';

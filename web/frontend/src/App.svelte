@@ -50,6 +50,7 @@
   import LoginView from './lib/components/LoginView.svelte';
   import SettingsModal from './lib/components/SettingsModal.svelte';
   import ThemeToggle from './lib/components/ThemeToggle.svelte';
+  import { getApiUrl } from './lib/api.js';
   import { initTheme } from './lib/stores/theme.js';
   import { currentSong, isPlaying, error, queue, playSong, togglePlay } from './lib/stores/player.js';
   import { activeDevices, thisDeviceId, startDeviceTracking } from './lib/stores/devices.js';
@@ -172,7 +173,7 @@
 
   async function checkAccountStatus() {
     try {
-      const res = await fetch('/api/account/status');
+      const res = await fetch(getApiUrl('/api/account/status'));
       if (res.ok) {
         const data = await res.json();
         isLoggedIn = !!data.isLoggedIn;
@@ -189,7 +190,7 @@
     loading = true;
     error.set(null);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(q)}`));
       if (!res.ok) throw new Error(`Search failed: HTTP ${res.status}`);
       const data = await res.json();
       tracks = data.results || [];
@@ -220,7 +221,7 @@
   async function checkSystemAuth() {
     isSystemLoading = true;
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch(getApiUrl('/api/auth/me'));
       if (res.ok) {
         const data = await res.json();
         isInitialized = !!data.isInitialized;
@@ -257,7 +258,7 @@
 
   async function handleLogout() {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch(getApiUrl('/api/auth/logout'), { method: 'POST' });
     } catch (_) {}
     isAuthenticated = false;
     currentUser = null;

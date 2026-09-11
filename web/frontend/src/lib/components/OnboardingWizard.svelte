@@ -17,6 +17,7 @@
     Cloud,
     HelpCircle
   } from 'lucide-svelte';
+  import { getApiUrl } from '../api.js';
 
   export let onComplete = () => {};
 
@@ -97,7 +98,7 @@
         submitStatusMessage = 'Mendeploy Cloudflare Relay Worker (proses upload & subdomain)...';
       }
 
-      const res = await fetch('/api/setup/init', {
+      const res = await fetch(getApiUrl('/api/setup/init'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

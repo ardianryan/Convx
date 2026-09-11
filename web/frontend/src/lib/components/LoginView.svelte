@@ -1,5 +1,6 @@
 <script>
   import { Sparkles, Lock, User, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-svelte';
+  import { getApiUrl } from '../api.js';
 
   export let platformName = 'Convx Music';
   export let onSuccess = () => {};
@@ -19,7 +20,7 @@
 
     isLoading = true;
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
