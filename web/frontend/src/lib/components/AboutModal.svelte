@@ -135,7 +135,7 @@
             </a>
 
             <a
-              href="https://github.com/ardianryan/Convx"
+              href="https://github.com/ardianryan/Convx-Desktop"
               target="_blank"
               rel="noopener noreferrer"
               class="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 transition-all group btn-pressable"
@@ -144,7 +144,7 @@
                 <Code2 class="w-5 h-5 text-[#fa2d48] shrink-0" />
                 <div class="min-w-0">
                   <p class="font-semibold text-xs text-white group-hover:text-rose-400 transition-colors truncate">
-                    ardianryan / Convx (Web Port)
+                    ardianryan / Convx-Desktop
                   </p>
                   <p class="text-[11px] text-neutral-400 truncate">
                     Repositori porting versi website lengkap + Docker

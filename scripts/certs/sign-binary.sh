@@ -29,7 +29,7 @@ if [ "$OS_TYPE" == "windows" ] || [[ "$TARGET_FILE" == *.exe ]]; then
             -pkcs12 "$PFX_FILE" \
             -pass "$PASS" \
             -n "Convx Desktop Music Player" \
-            -i "https://github.com/ardianryan/Convx" \
+            -i "https://github.com/ardianryan/Convx-Desktop" \
             -in "$TARGET_FILE" \
             -out "${TARGET_FILE}.signed"
         mv "${TARGET_FILE}.signed" "$TARGET_FILE"
