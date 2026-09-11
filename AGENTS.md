@@ -31,10 +31,10 @@ Convx is a multi-platform music streaming monorepo:
 - `desktop/` only contains Wails native options (`main.go`), Wails JS bindings (`app.go`), pre-flight checks (`wizard/`), and OS build configs (`wails.json`, `build/`).
 - `desktop/main.go` embeds `frontend/dist`. During CI or manual builds, `web/backend/dist` (Vite's `outDir`) **MUST** be copied into `desktop/frontend/dist` before invoking `wails build` so `go:embed` embeds the actual `index.html` and assets.
 
-### Rule 2: CI/CD Packaging Tooling
-- In `.github/workflows/desktop-release.yml`:
-  - **Windows Runner (`windows-latest`)**: MUST use `7z a` for creating zip archives because the `zip` command is NOT available in the default Windows Git Bash runner environment.
-  - **macOS / Linux Runners**: Use `zip -r`.
+### Rule 2: CI/CD Packaging Tooling & Shell Compatibility
+- All workflow steps in `.github/workflows/desktop-release.yml` MUST specify `shell: bash` so commands like `rm -rf` and `cp -r` execute consistently across Windows, macOS, and Linux runners (avoiding PowerShell parameter syntax errors).
+- **Windows Runner (`windows-latest`)**: MUST use `7z a` for creating zip archives because the `zip` command is NOT available in the default Windows Git Bash runner environment.
+- **macOS / Linux Runners**: Use `zip -r` for Linux, and `hdiutil` for macOS DMG creation.
 
 ### Rule 3: PPTI MangoTek Certificate Compliance
 - Convx Desktop requires user acceptance of the PPTI MangoTek certificate agreement.

@@ -58,6 +58,7 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build Frontend Assets
+        shell: bash
         run: |
           cd web/frontend
           npm ci
@@ -67,6 +68,7 @@ jobs:
           cp -r ../backend/dist ../../desktop/frontend/
 
       - name: Generate PPTI MangoTek Code Signing Certificates
+        shell: bash
         run: |
           chmod +x scripts/certs/generate-certs.sh
           ./scripts/certs/generate-certs.sh
