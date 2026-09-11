@@ -1,0 +1,33 @@
+# ==============================================================================
+# Convx Music — Docker Compose
+# ==============================================================================
+
+services:
+  convx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/ardianryan/convx-web:latest
+    container_name: convx-web
+    restart: unless-stopped
+    ports:
+      - "${CONVX_PORT:-7554}:7554"
+    environment:
+      - CONVX_PORT=7554
+      - GO_BACKEND_PORT=7555
+      - PLATFORM_NAME=${PLATFORM_NAME:-Convx Music}
+      - CF_ACCOUNT_ID=${CF_ACCOUNT_ID:-}
+      - CF_API_TOKEN=${CF_API_TOKEN:-}
+      - CF_WORKER_URL=${CF_WORKER_URL:-}
+    volumes:
+      - convx-data:/app/backend/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:7554/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  convx-data:
+    driver: local

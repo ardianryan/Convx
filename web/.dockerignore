@@ -1,0 +1,21 @@
+# Dependencies
+frontend/node_modules
+server/node_modules
+
+# Build artifacts
+backend/dist
+backend/convx-web
+backend/data
+
+# Dev files
+.env
+.git
+.github
+.gitignore
+.vscode
+*.md
+!README.md
+
+# OS files
+.DS_Store
+Thumbs.db
