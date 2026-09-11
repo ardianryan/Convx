@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const chunkSize int64 = 256 * 1024 // 256 KB chunk
+const chunkSize int64 = 10 * 1024 * 1024 // 10 MB chunk to cover full audio tracks without cutting off at 15s
 
 type streamCacheEntry struct {
 	streamURL string
