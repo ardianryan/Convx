@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const chunkSize int64 = 10 * 1024 * 1024 // 10 MB chunk to cover full audio tracks without cutting off at 15s
+const chunkSize int64 = 10 * 1024 * 1024 // 10 MB chunk
 
 type streamCacheEntry struct {
 	streamURL string
@@ -52,7 +52,6 @@ func NewAudioProxy() *AudioProxy {
 				if len(via) >= 10 {
 					return fmt.Errorf("stopped after 10 redirects")
 				}
-				// Re-apply Range header across redirects
 				if len(via) > 0 {
 					if r := via[0].Header.Get("Range"); r != "" {
 						req.Header.Set("Range", r)
@@ -68,8 +67,6 @@ func NewAudioProxy() *AudioProxy {
 	return proxy
 }
 
-// ServeVideo handles streaming for a video ID, with automatic stream resolution,
-// caching, Range header clamping (256 KB), and auto-retry on 403 (for IP rotation/mismatch)
 func (p *AudioProxy) ServeVideo(w http.ResponseWriter, r *http.Request, videoID string, resolver func(string) (string, error)) {
 	if videoID == "" {
 		http.Error(w, "missing videoId", http.StatusBadRequest)
@@ -83,11 +80,9 @@ func (p *AudioProxy) ServeVideo(w http.ResponseWriter, r *http.Request, videoID 
 		return
 	}
 
-	// First attempt: try with relay if configured, otherwise direct
 	hasRelay := p.GetRelayURL() != ""
 	statusCode, err := p.streamChunk(w, r, targetURL, hasRelay)
 	if err != nil || statusCode == http.StatusForbidden || statusCode == http.StatusGone {
-		// If relay failed with 403/410/error, IMMEDIATELY retry with DIRECT connection!
 		if hasRelay {
 			log.Printf("[PROXY] Relay failed (%d) for %s. Retrying directly...", statusCode, videoID)
 			directStatus, directErr := p.streamChunk(w, r, targetURL, false)
@@ -96,11 +91,9 @@ func (p *AudioProxy) ServeVideo(w http.ResponseWriter, r *http.Request, videoID 
 			}
 		}
 
-		// Refresh stream URL and retry once transparently!
 		log.Printf("[PROXY] Refreshing stream URL for %s and retrying...", videoID)
 		freshURL, resolveErr := p.getOrResolveURL(videoID, resolver, true)
 		if resolveErr == nil && freshURL != "" {
-			// Try direct first on retry
 			directStatus, directErr := p.streamChunk(w, r, freshURL, false)
 			if directErr == nil && directStatus < 400 {
 				return
@@ -119,7 +112,6 @@ func (p *AudioProxy) ServeVideo(w http.ResponseWriter, r *http.Request, videoID 
 	}
 }
 
-// ServeURL handles streaming for an explicit direct URL
 func (p *AudioProxy) ServeURL(w http.ResponseWriter, r *http.Request, rawURL string) {
 	if rawURL == "" {
 		http.Error(w, "missing stream url", http.StatusBadRequest)
@@ -137,7 +129,6 @@ func (p *AudioProxy) ServeURL(w http.ResponseWriter, r *http.Request, rawURL str
 	}
 }
 
-// ServeHTTP implements http.Handler for legacy /api/proxy/audio?url=... requests
 func (p *AudioProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rawURL := r.URL.Query().Get("url")
 	p.ServeURL(w, r, rawURL)
@@ -201,21 +192,19 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		outReq.Header.Set("x-relay-path", relayPath)
 	}
 
-	// Forward User-Agent or default to standard Chrome UA
 	if ua := r.Header.Get("User-Agent"); ua != "" {
 		outReq.Header.Set("User-Agent", ua)
 	} else {
 		outReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
 	}
 
-	// Clamping the Range header for Google Video CDN:
-	// Google Video returns 403 Forbidden if:
-	// 1) Range header is missing completely
-	// 2) Range is open-ended without upper bound (e.g. bytes=0-)
-	// 3) Range chunk size exceeds the allowed buffer
 	rangeHeader := r.Header.Get("Range")
+	hasRange := rangeHeader != ""
 	var upstreamRange string
-	if rangeHeader == "" || rangeHeader == "bytes=0-" {
+
+	if !hasRange {
+		upstreamRange = fmt.Sprintf("bytes=0-%d", chunkSize-1)
+	} else if rangeHeader == "bytes=0-" {
 		upstreamRange = fmt.Sprintf("bytes=0-%d", chunkSize-1)
 	} else if strings.HasPrefix(rangeHeader, "bytes=") {
 		rangeVal := strings.TrimPrefix(rangeHeader, "bytes=")
@@ -237,9 +226,12 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 			upstreamRange = fmt.Sprintf("bytes=0-%d", chunkSize-1)
 		}
 	} else {
-		upstreamRange = fmt.Sprintf("bytes=0-%d", chunkSize-1)
+		upstreamRange = rangeHeader
 	}
-	outReq.Header.Set("Range", upstreamRange)
+
+	if upstreamRange != "" {
+		outReq.Header.Set("Range", upstreamRange)
+	}
 
 	resp, err := p.httpClient.Do(outReq)
 	if err != nil {
@@ -250,28 +242,39 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 
 	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusGone {
 		bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		log.Printf("[PROXY-DEBUG] Upstream %d for range=%s UA=%s URL=%s body=%s", 
+		log.Printf("[PROXY-DEBUG] Upstream %d for range=%s UA=%s URL=%s body=%s",
 			resp.StatusCode, upstreamRange, outReq.Header.Get("User-Agent"), streamURL[:min(len(streamURL), 100)], string(bodySnippet))
 		return resp.StatusCode, fmt.Errorf("upstream error %d", resp.StatusCode)
 	}
 
-	// Forward necessary streaming headers
+	// Forward streaming headers
 	for _, h := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"} {
 		if val := resp.Header.Get(h); val != "" {
 			w.Header().Set(h, val)
 		}
 	}
 
-	// Enable CORS on audio stream
+	finalStatus := resp.StatusCode
+	// If client did NOT send a Range header, convert 206 Partial Content to 200 OK and fix headers for HTML5 player
+	if !hasRange && resp.StatusCode == http.StatusPartialContent {
+		finalStatus = http.StatusOK
+		w.Header().Del("Content-Range")
+		if cr := resp.Header.Get("Content-Range"); cr != "" {
+			if parts := strings.Split(cr, "/"); len(parts) == 2 && parts[1] != "*" {
+				w.Header().Set("Content-Length", parts[1])
+			}
+		}
+	}
+
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Range")
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 
-	w.WriteHeader(resp.StatusCode)
+	w.WriteHeader(finalStatus)
 	if method != http.MethodHead {
 		_, _ = io.Copy(w, resp.Body)
 	}
 
-	return resp.StatusCode, nil
+	return finalStatus, nil
 }
