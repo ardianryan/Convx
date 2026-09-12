@@ -150,3 +150,10 @@ merge_strings.py
 stitch_lucid_glass_music/
 app/arm64Gms
 Convx_GitHub_Analytics.xlsx
+
+# Web Data, Dist & Node Modules
+web/backend/data/
+web/backend/dist/
+web/server/node_modules/
+node_modules/
+
