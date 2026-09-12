@@ -468,30 +468,14 @@ if (typeof window !== 'undefined') {
   });
 
   audio.addEventListener('ended', () => {
-    if (currentEngine === 'audio') playNext();
+    playNext();
   });
 
   audio.addEventListener('error', (e) => {
-    if (currentEngine === 'audio') {
-      console.warn('HTML5 Audio playback error, falling back to YouTube iframe engine...', e, audio.error);
-      if (currentActiveSong) {
-        playbackEngine.set('video');
-        currentEngine = 'video';
-        let curT = audio.currentTime || 0;
-        playSong(currentActiveSong, null, curT);
-      } else {
-        isLoading.set(false);
-        isPlaying.set(false);
-        error.set('Tidak dapat memutar lagu ini. Coba lagu lain atau refresh.');
-      }
-    }
+    console.warn('HTML5 Audio playback error event:', e, audio?.error);
+    isLoading.set(false);
+    isPlaying.set(false);
   });
-
-  if (document.readyState === 'loading') {
-    window.addEventListener('DOMContentLoaded', initYT);
-  } else {
-    initYT();
-  }
 
   if ('mediaSession' in navigator) {
     navigator.mediaSession.setActionHandler('play', () => {
@@ -514,6 +498,9 @@ if (typeof window !== 'undefined') {
 
 export async function playSong(song, newQueue = null, startSeconds = 0) {
   if (!song || !song.id) return;
+
+  playbackEngine.set('audio');
+  currentEngine = 'audio';
 
   userExplicitlyPaused = false;
   startKeepaliveAudio();
@@ -542,18 +529,12 @@ export async function playSong(song, newQueue = null, startSeconds = 0) {
     navigator.mediaSession.playbackState = 'playing';
   }
 
-  // Pure Native Audio Mode
-  if (currentEngine === 'audio') {
-    if (ytPlayer && ytReady) {
-      try {
-        ytPlayer.pauseVideo();
-      } catch (e) {}
-    }
-    stopProgressTimer();
+  stopProgressTimer();
 
-    try {
-      const proxyUrl = getApiUrl(`/api/proxy/audio/${song.id}`);
-      console.log('[Convx Audio] Loading:', proxyUrl);
+  try {
+    const proxyUrl = getApiUrl(`/api/proxy/audio/${song.id}`);
+    console.log('[Convx Audio] Loading:', proxyUrl);
+    if (audio) {
       audio.pause();
       audio.src = proxyUrl;
       audio.volume = currentVol;
@@ -568,71 +549,18 @@ export async function playSong(song, newQueue = null, startSeconds = 0) {
       isPlaying.set(true);
       isLoading.set(false);
       return;
-    } catch (err) {
-      console.warn('[Convx Audio] Play error:', err?.name, err?.message);
-      // If autoplay blocked, try on next user interaction
-      if (err?.name === 'NotAllowedError') {
-        console.log('[Convx Audio] Autoplay blocked, will play on next interaction');
-        isLoading.set(false);
-        isPlaying.set(false);
-        // The audio src is loaded, just needs user gesture to play
-        return;
-      }
-      // For other errors, fall back to YouTube engine
-      console.log('[Convx Audio] Falling back to YouTube engine...');
-      playbackEngine.set('video');
-      currentEngine = 'video';
-      // Don't return — let it fall through to YouTube engine below
     }
-  }
-
-  // Hidden YouTube IFrame Engine
-  if (audio) {
-    try {
-      audio.pause();
-      audio.removeAttribute('src');
-      audio.load();
-    } catch (e) {}
-  }
-
-  if (ytReady && ytPlayer && isPlayerAttached() && typeof ytPlayer.loadVideoById === 'function') {
-    try {
-      ytPlayer.loadVideoById({
-        videoId: song.id,
-        startSeconds: startSeconds || 0,
-      });
-      ytPlayer.playVideo();
-
-      // Autoplay watchdog: if stuck buffering / loading for more than 4 seconds
-      setTimeout(() => {
-        let loadingNow = false;
-        let playingNow = false;
-        isLoading.subscribe((l) => (loadingNow = l))();
-        isPlaying.subscribe((p) => (playingNow = p))();
-        if (loadingNow && !playingNow && currentEngine === 'video') {
-          console.log('[Convx Engine] Autoplay watchdog: re-triggering playVideo');
-          if (ytPlayer && ytReady && isPlayerAttached()) {
-            try {
-              ytPlayer.playVideo();
-            } catch (_) {}
-          }
-          isLoading.set(false);
-        }
-      }, 4000);
-
+  } catch (err) {
+    console.warn('[Convx Audio] Play error:', err?.name, err?.message);
+    if (err?.name === 'NotAllowedError') {
+      console.log('[Convx Audio] Autoplay blocked, will play on next interaction');
+      isLoading.set(false);
+      isPlaying.set(false);
       return;
-    } catch (err) {
-      console.warn('Failed to loadVideoById on ytPlayer:', err);
     }
-  }
-
-  // If not ready or player became detached, queue and recreate player
-  pendingSong = song;
-  pendingSeekTime = startSeconds || 0;
-  if (typeof window !== 'undefined') {
-    ytReady = false;
-    ytPlayer = null;
-    initYT();
+    isLoading.set(false);
+    isPlaying.set(false);
+    error.set('Tidak dapat memutar lagu. Silakan coba klik play lagi.');
   }
 }
 
