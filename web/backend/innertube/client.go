@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -449,15 +448,7 @@ func (c *Client) searchYouTubeWeb(query string) ([]Song, error) {
 		return nil, err
 	}
 
-	req, err := c.newRequest("POST", youtubeBase, "/search", bytes.NewReader(bodyBytes))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", userAgentWeb)
-	c.applyAuthHeaders(req)
-
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequestWithFallback("POST", youtubeBase, "/search", bodyBytes, userAgentWeb, "")
 	if err != nil {
 		return nil, err
 	}
