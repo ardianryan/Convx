@@ -183,45 +183,36 @@ type ClientConfig struct {
 
 var clientHierarchy = []ClientConfig{
 	{
-		Name:        "VISIONOS",
-		Version:     "0.1",
-		UserAgent:   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+		Name:        "IOS",
+		Version:     "20.08.3",
+		UserAgent:   "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)",
 		DeviceMake:  "Apple",
-		DeviceModel: "RealityDevice14,1",
-		OsName:      "visionOS",
-		OsVersion:   "1.3.21O771",
-	},
-	{
-		Name:        "ANDROID_VR",
-		Version:     "1.61.48",
-		UserAgent:   "com.google.android.apps.youtube.vr.oculus/1.61.48 (Linux; U; Android 12; en_US; Quest 3; Build/SQ3A.220605.009.A1; Cronet/132.0.6808.3)",
-		DeviceMake:  "Oculus",
-		DeviceModel: "Quest 3",
-		OsName:      "Android",
-		OsVersion:   "12",
-		SdkVer:      32,
+		DeviceModel: "iPhone15,2",
+		OsName:      "iOS",
+		OsVersion:   "18.0",
 	},
 	{
 		Name:        "IOS",
-		Version:     "21.03.1",
-		UserAgent:   "com.google.ios.youtube/21.03.1 (iPhone16,2; U; CPU iOS 18_2 like Mac OS X;)",
+		Version:     "20.05.1",
+		UserAgent:   "com.google.ios.youtube/20.05.1 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)",
 		DeviceMake:  "Apple",
-		DeviceModel: "iPhone16,2",
+		DeviceModel: "iPhone15,2",
 		OsName:      "iOS",
-		OsVersion:   "18.2.22C152",
+		OsVersion:   "18.0",
 	},
 	{
-		Name:        "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
-		Version:     "2.0",
-		UserAgent:   "Mozilla/5.0 (PlayStation; PlayStation 4/12.02) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15",
-		DeviceMake:  "Sony",
-		DeviceModel: "PlayStation 4",
-		OsName:      "Orbis OS",
+		Name:        "IOS",
+		Version:     "20.01.2",
+		UserAgent:   "com.google.ios.youtube/20.01.2 (iPhone14,5; U; CPU iOS 17_5 like Mac OS X)",
+		DeviceMake:  "Apple",
+		DeviceModel: "iPhone14,5",
+		OsName:      "iOS",
+		OsVersion:   "17.5",
 	},
 }
 
 // GetStream resolves the audio stream for a given YouTube video ID
-// If user has a cookie set, it uses WEB_REMIX & IOS with authentication first.
+// If user has a cookie set, it uses IOS with authentication first.
 func (c *Client) GetStream(videoID string) (*StreamInfo, error) {
 	var lastErr error
 
@@ -230,17 +221,12 @@ func (c *Client) GetStream(videoID string) (*StreamInfo, error) {
 		hierarchy = append([]ClientConfig{
 			{
 				Name:        "IOS",
-				Version:     "21.03.1",
-				UserAgent:   "com.google.ios.youtube/21.03.1 (iPhone16,2; U; CPU iOS 18_2 like Mac OS X;)",
+				Version:     "20.08.3",
+				UserAgent:   "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)",
 				DeviceMake:  "Apple",
-				DeviceModel: "iPhone16,2",
+				DeviceModel: "iPhone15,2",
 				OsName:      "iOS",
-				OsVersion:   "18.2.22C152",
-			},
-			{
-				Name:      "WEB_REMIX",
-				Version:   "1.20240701.01.00",
-				UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
+				OsVersion:   "18.0",
 			},
 		}, clientHierarchy...)
 	} else {
