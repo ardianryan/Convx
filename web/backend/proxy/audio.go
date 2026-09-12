@@ -83,9 +83,9 @@ func (p *AudioProxy) ServeVideo(w http.ResponseWriter, r *http.Request, videoID 
 
 	hasRelay := p.GetRelayURL() != ""
 	statusCode, err := p.streamChunk(w, r, targetURL, hasRelay)
-	if err != nil || statusCode == http.StatusForbidden || statusCode == http.StatusGone {
+	if err != nil || statusCode >= 400 {
 		if hasRelay {
-			log.Printf("[PROXY] Relay failed (%d) for %s. Retrying directly...", statusCode, videoID)
+			log.Printf("[PROXY] Relay failed (%d, %v) for %s. Retrying directly...", statusCode, err, videoID)
 			directStatus, directErr := p.streamChunk(w, r, targetURL, false)
 			if directErr == nil && directStatus < 400 {
 				return
@@ -100,8 +100,8 @@ func (p *AudioProxy) ServeVideo(w http.ResponseWriter, r *http.Request, videoID 
 				return
 			}
 			if hasRelay {
-				_, retryErr := p.streamChunk(w, r, freshURL, true)
-				if retryErr == nil {
+				relayStatus, retryErr := p.streamChunk(w, r, freshURL, true)
+				if retryErr == nil && relayStatus < 400 {
 					return
 				}
 			}
