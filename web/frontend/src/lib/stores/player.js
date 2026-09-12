@@ -261,7 +261,7 @@ export function createPlayerInstance() {
         rel: 0,
         playsinline: 1,
         iv_load_policy: 3,
-        origin: window.location.origin,
+        origin: (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('wails.localhost') && !window.location.origin.startsWith('file:') && !window.location.origin.startsWith('wails:')) ? window.location.origin : 'http://127.0.0.1:7554',
       },
       events: {
         onReady: () => {
