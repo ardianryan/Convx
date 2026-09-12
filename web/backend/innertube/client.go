@@ -107,21 +107,55 @@ func (c *Client) GetRelayURL() string {
 	return c.relayURL
 }
 
-func (c *Client) newRequest(method, targetBase, targetPath string, body io.Reader) (*http.Request, error) {
+func (c *Client) doRequestWithFallback(method, targetBase, targetPath string, bodyBytes []byte, userAgent string, referer string) (*http.Response, error) {
 	c.mu.RLock()
 	relay := c.relayURL
 	c.mu.RUnlock()
 
 	if relay != "" {
-		req, err := http.NewRequest(method, relay, body)
-		if err != nil {
-			return nil, err
+		req, err := http.NewRequest(method, relay, bytes.NewReader(bodyBytes))
+		if err == nil {
+			req.Header.Set("Content-Type", "application/json")
+			if userAgent != "" {
+				req.Header.Set("User-Agent", userAgent)
+			}
+			if referer != "" {
+				req.Header.Set("Referer", referer)
+			}
+			req.Header.Set("x-relay-target", targetBase)
+			req.Header.Set("x-relay-path", targetPath)
+			c.applyAuthHeaders(req)
+
+			resp, err := c.httpClient.Do(req)
+			if err == nil && resp.StatusCode == http.StatusOK {
+				return resp, nil
+			}
+			if resp != nil {
+				resp.Body.Close()
+			}
+			statusStr := "err"
+			if resp != nil {
+				statusStr = strconv.Itoa(resp.StatusCode)
+			}
+			log.Printf("[InnerTube] Relay request to %s%s failed (status %s, err %v). Retrying directly...", targetBase, targetPath, statusStr, err)
 		}
-		req.Header.Set("x-relay-target", targetBase)
-		req.Header.Set("x-relay-path", targetPath)
-		return req, nil
 	}
-	return http.NewRequest(method, targetBase+targetPath, body)
+
+	// Direct request fallback (bypass relay)
+	req, err := http.NewRequest(method, targetBase+targetPath, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if userAgent != "" {
+		req.Header.Set("User-Agent", userAgent)
+	}
+	if referer != "" {
+		req.Header.Set("Referer", referer)
+	}
+	c.applyAuthHeaders(req)
+
+	return c.httpClient.Do(req)
 }
 
 func parseCookieString(raw string) map[string]string {
@@ -284,15 +318,7 @@ func (c *Client) requestStreamWithClient(videoID string, cfg ClientConfig) (*Str
 		targetBase = youtubeMusicBase
 	}
 
-	req, err := c.newRequest("POST", targetBase, "/player", bytes.NewReader(bodyBytes))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", cfg.UserAgent)
-	c.applyAuthHeaders(req)
-
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequestWithFallback("POST", targetBase, "/player", bodyBytes, cfg.UserAgent, "")
 	if err != nil {
 		return nil, err
 	}
@@ -581,16 +607,7 @@ func (c *Client) searchYouTubeMusic(query string) ([]Song, error) {
 	}
 
 	bodyBytes, _ := json.Marshal(reqBody)
-	req, err := c.newRequest("POST", youtubeMusicBase, "/search", bytes.NewReader(bodyBytes))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", userAgentWeb)
-	req.Header.Set("Referer", "https://music.youtube.com/")
-	c.applyAuthHeaders(req)
-
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequestWithFallback("POST", youtubeMusicBase, "/search", bodyBytes, userAgentWeb, "https://music.youtube.com/")
 	if err != nil {
 		return nil, err
 	}
