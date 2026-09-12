@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -170,24 +171,68 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		method = http.MethodGet
 	}
 
+	const maxChunkSize int64 = 512 * 1024 // 512 KB bounded chunk size for Google Video CDN
+
+	rangeHeader := r.Header.Get("Range")
+	hasRange := rangeHeader != ""
+
+	var startByte int64 = 0
+	var endByte int64 = -1
+
+	if hasRange && strings.HasPrefix(rangeHeader, "bytes=") {
+		parts := strings.Split(strings.TrimPrefix(rangeHeader, "bytes="), "-")
+		if len(parts) >= 1 && parts[0] != "" {
+			if val, err := strconv.ParseInt(parts[0], 10, 64); err == nil && val >= 0 {
+				startByte = val
+			}
+		}
+		if len(parts) >= 2 && parts[1] != "" {
+			if val, err := strconv.ParseInt(parts[1], 10, 64); err == nil && val >= startByte {
+				endByte = val
+			}
+		}
+	}
+
 	targetURL := streamURL
+	if startByte > 1000000 {
+		// Calculate approximate seek timestamp in milliseconds (~19,200 bytes/sec for Opus 150kbps)
+		approxMs := int64((startByte * 1000) / 19200)
+		if strings.Contains(targetURL, "?") {
+			targetURL = fmt.Sprintf("%s&begin=%d", targetURL, approxMs)
+		} else {
+			targetURL = fmt.Sprintf("%s?begin=%d", targetURL, approxMs)
+		}
+		startByte = 0
+		endByte = maxChunkSize - 1
+	} else if endByte == -1 || (endByte-startByte+1) > maxChunkSize {
+		endByte = startByte + maxChunkSize - 1
+	}
+
+	upstreamRange := fmt.Sprintf("bytes=%d-%d", startByte, endByte)
+
+	targetParsed, err := url.Parse(targetURL)
+	if err != nil {
+		targetParsed = parsedURL
+	}
+
 	relay := p.GetRelayURL()
 	var isRelayed bool
+	finalReqURL := targetURL
 	if useRelay && relay != "" {
-		targetURL = relay
+		finalReqURL = relay
 		isRelayed = true
 	}
 
-	outReq, err := http.NewRequestWithContext(r.Context(), method, targetURL, nil)
+	outReq, err := http.NewRequestWithContext(r.Context(), method, finalReqURL, nil)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
 
 	if isRelayed {
-		outReq.Header.Set("x-relay-target", fmt.Sprintf("https://%s", parsedURL.Host))
-		relayPath := parsedURL.Path
-		if parsedURL.RawQuery != "" {
-			relayPath += "?" + parsedURL.RawQuery
+		outReq.Header.Set("x-relay-target", fmt.Sprintf("https://%s", targetParsed.Host))
+		relayPath := targetParsed.Path
+		if targetParsed.RawQuery != "" {
+			relayPath += "?" + targetParsed.RawQuery
 		}
 		outReq.Header.Set("x-relay-path", relayPath)
 	}
@@ -198,40 +243,7 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		outReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
 	}
 
-	rangeHeader := r.Header.Get("Range")
-	hasRange := rangeHeader != ""
-	var upstreamRange string
-
-	if !hasRange {
-		upstreamRange = fmt.Sprintf("bytes=0-%d", chunkSize-1)
-	} else if rangeHeader == "bytes=0-" {
-		upstreamRange = fmt.Sprintf("bytes=0-%d", chunkSize-1)
-	} else if strings.HasPrefix(rangeHeader, "bytes=") {
-		rangeVal := strings.TrimPrefix(rangeHeader, "bytes=")
-		parts := strings.Split(rangeVal, "-")
-		if len(parts) >= 1 && parts[0] != "" {
-			var start int64
-			fmt.Sscanf(parts[0], "%d", &start)
-			end := start + chunkSize - 1
-			if len(parts) >= 2 && parts[1] != "" {
-				var requestedEnd int64
-				if _, err := fmt.Sscanf(parts[1], "%d", &requestedEnd); err == nil && requestedEnd >= start {
-					if requestedEnd < end {
-						end = requestedEnd
-					}
-				}
-			}
-			upstreamRange = fmt.Sprintf("bytes=%d-%d", start, end)
-		} else {
-			upstreamRange = fmt.Sprintf("bytes=0-%d", chunkSize-1)
-		}
-	} else {
-		upstreamRange = rangeHeader
-	}
-
-	if upstreamRange != "" {
-		outReq.Header.Set("Range", upstreamRange)
-	}
+	outReq.Header.Set("Range", upstreamRange)
 
 	resp, err := p.httpClient.Do(outReq)
 	if err != nil {
@@ -278,3 +290,4 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 
 	return finalStatus, nil
 }
+
