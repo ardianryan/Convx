@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -171,53 +170,17 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		method = http.MethodGet
 	}
 
-	const maxChunkSize int64 = 512 * 1024 // 512 KB bounded chunk size for Google Video CDN
-
 	rangeHeader := r.Header.Get("Range")
 	hasRange := rangeHeader != ""
 
-	var startByte int64 = 0
-	var endByte int64 = -1
-
-	if hasRange && strings.HasPrefix(rangeHeader, "bytes=") {
-		parts := strings.Split(strings.TrimPrefix(rangeHeader, "bytes="), "-")
-		if len(parts) >= 1 && parts[0] != "" {
-			if val, err := strconv.ParseInt(parts[0], 10, 64); err == nil && val >= 0 {
-				startByte = val
-			}
-		}
-		if len(parts) >= 2 && parts[1] != "" {
-			if val, err := strconv.ParseInt(parts[1], 10, 64); err == nil && val >= startByte {
-				endByte = val
-			}
-		}
-	}
-
-	targetURL := streamURL
-	if startByte > 1000000 {
-		// Calculate approximate seek timestamp in milliseconds (~19,200 bytes/sec for Opus 150kbps)
-		approxMs := int64((startByte * 1000) / 19200)
-		if strings.Contains(targetURL, "?") {
-			targetURL = fmt.Sprintf("%s&begin=%d", targetURL, approxMs)
-		} else {
-			targetURL = fmt.Sprintf("%s?begin=%d", targetURL, approxMs)
-		}
-		startByte = 0
-		endByte = maxChunkSize - 1
-	} else if endByte == -1 || (endByte-startByte+1) > maxChunkSize {
-		endByte = startByte + maxChunkSize - 1
-	}
-
-	upstreamRange := fmt.Sprintf("bytes=%d-%d", startByte, endByte)
-
-	targetParsed, err := url.Parse(targetURL)
+	targetParsed, err := url.Parse(streamURL)
 	if err != nil {
 		targetParsed = parsedURL
 	}
 
 	relay := p.GetRelayURL()
 	var isRelayed bool
-	finalReqURL := targetURL
+	finalReqURL := streamURL
 	if useRelay && relay != "" {
 		finalReqURL = relay
 		isRelayed = true
@@ -243,7 +206,9 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		outReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
 	}
 
-	outReq.Header.Set("Range", upstreamRange)
+	if hasRange {
+		outReq.Header.Set("Range", rangeHeader)
+	}
 
 	resp, err := p.httpClient.Do(outReq)
 	if err != nil {
@@ -254,8 +219,8 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 
 	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusGone {
 		bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		log.Printf("[PROXY-DEBUG] Upstream %d for range=%s UA=%s URL=%s body=%s",
-			resp.StatusCode, upstreamRange, outReq.Header.Get("User-Agent"), streamURL[:min(len(streamURL), 100)], string(bodySnippet))
+		log.Printf("[PROXY-DEBUG] Upstream %d for Range=%s UA=%s URL=%s body=%s",
+			resp.StatusCode, rangeHeader, outReq.Header.Get("User-Agent"), streamURL[:min(len(streamURL), 100)], string(bodySnippet))
 		return resp.StatusCode, fmt.Errorf("upstream error %d", resp.StatusCode)
 	}
 
@@ -266,8 +231,12 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		}
 	}
 
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Range")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+
 	finalStatus := resp.StatusCode
-	// If client did NOT send a Range header, convert 206 Partial Content to 200 OK and fix headers for HTML5 player
 	if !hasRange && resp.StatusCode == http.StatusPartialContent {
 		finalStatus = http.StatusOK
 		w.Header().Del("Content-Range")
@@ -277,11 +246,6 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 			}
 		}
 	}
-
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Range")
-	w.Header().Set("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
 
 	w.WriteHeader(finalStatus)
 	if method != http.MethodHead {
