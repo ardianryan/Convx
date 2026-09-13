@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -149,6 +150,8 @@ func (p *AudioProxy) getOrResolveURL(videoID string, resolver func(string) (stri
 	return rawURL, nil
 }
 
+var clusterID = []byte{0x1f, 0x43, 0xb6, 0x75} // WebM Cluster ID
+
 func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamURL string, useRelay bool) (int, error) {
 	parsedURL, err := url.Parse(streamURL)
 	if err != nil || (!strings.HasSuffix(parsedURL.Host, "googlevideo.com") && !strings.HasSuffix(parsedURL.Host, "youtube.com")) {
@@ -166,8 +169,6 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 	hasRange := rangeHeader != ""
 
 	var startByte int64 = 0
-	var endByte int64 = -1
-
 	if hasRange && strings.HasPrefix(rangeHeader, "bytes=") {
 		parts := strings.Split(strings.TrimPrefix(rangeHeader, "bytes="), "-")
 		if len(parts) >= 1 && parts[0] != "" {
@@ -175,132 +176,147 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 				startByte = val
 			}
 		}
-		if len(parts) >= 2 && parts[1] != "" {
-			if val, err := strconv.ParseInt(parts[1], 10, 64); err == nil && val >= startByte {
-				endByte = val
-			}
-		}
-	}
-
-	reqStartByte := startByte
-	reqEndByte := endByte
-
-	targetURL := streamURL
-	var upstreamStartByte int64 = startByte
-	var upstreamEndByte int64 = endByte
-
-	if reqStartByte > 0 {
-		// Calculate approximate seek timestamp in milliseconds (~19,200 bytes/sec for Opus 150kbps)
-		approxMs := int64((reqStartByte * 1000) / 19200)
-		if strings.Contains(targetURL, "?") {
-			targetURL = fmt.Sprintf("%s&begin=%d", targetURL, approxMs)
-		} else {
-			targetURL = fmt.Sprintf("%s?begin=%d", targetURL, approxMs)
-		}
-		// When &begin=approxMs is appended, Google Video CDN resets stream offset to 0
-		upstreamStartByte = 0
-		chunkLen := maxChunkSize
-		if reqEndByte != -1 && reqEndByte >= reqStartByte {
-			chunkLen = reqEndByte - reqStartByte + 1
-			if chunkLen > maxChunkSize {
-				chunkLen = maxChunkSize
-			}
-		}
-		upstreamEndByte = chunkLen - 1
-		reqEndByte = reqStartByte + chunkLen - 1
-	} else {
-		if reqEndByte == -1 || (reqEndByte-reqStartByte+1) > maxChunkSize {
-			reqEndByte = reqStartByte + maxChunkSize - 1
-		}
-		upstreamStartByte = reqStartByte
-		upstreamEndByte = reqEndByte
-	}
-
-	upstreamRange := fmt.Sprintf("bytes=%d-%d", upstreamStartByte, upstreamEndByte)
-
-	targetParsed, err := url.Parse(targetURL)
-	if err != nil {
-		targetParsed = parsedURL
-	}
-
-	relay := p.GetRelayURL()
-	var isRelayed bool
-	finalReqURL := targetURL
-	if useRelay && relay != "" {
-		finalReqURL = relay
-		isRelayed = true
-	}
-
-	outReq, err := http.NewRequestWithContext(r.Context(), method, finalReqURL, nil)
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-
-	if isRelayed {
-		outReq.Header.Set("x-relay-target", fmt.Sprintf("https://%s", targetParsed.Host))
-		relayPath := targetParsed.Path
-		if targetParsed.RawQuery != "" {
-			relayPath += "?" + targetParsed.RawQuery
-		}
-		outReq.Header.Set("x-relay-path", relayPath)
-	}
-
-	// Google Video CDN requires matching the iOS client User-Agent used during stream extraction
-	outReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
-
-	outReq.Header.Set("Range", upstreamRange)
-
-	resp, err := p.httpClient.Do(outReq)
-	if err != nil {
-		log.Printf("[PROXY-DEBUG] Do err: %v", err)
-		return http.StatusBadGateway, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusGone {
-		bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		log.Printf("[PROXY-DEBUG] Upstream %d for Range=%s UA=%s URL=%s body=%s",
-			resp.StatusCode, upstreamRange, outReq.Header.Get("User-Agent"), targetURL[:min(len(targetURL), 100)], string(bodySnippet))
-		return resp.StatusCode, fmt.Errorf("upstream error %d", resp.StatusCode)
-	}
-
-	// Forward streaming headers
-	for _, h := range []string{"Content-Type", "Content-Length", "Accept-Ranges"} {
-		if val := resp.Header.Get(h); val != "" {
-			w.Header().Set(h, val)
-		}
-	}
-
-	totalSizeStr := "*"
-	if cr := resp.Header.Get("Content-Range"); cr != "" {
-		if parts := strings.Split(cr, "/"); len(parts) == 2 {
-			totalSizeStr = parts[1]
-		}
-	}
-
-	if hasRange || reqStartByte > 0 {
-		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%s", reqStartByte, reqEndByte, totalSizeStr))
 	}
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Range")
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges")
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("Content-Type", "audio/webm; codecs=opus")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 
-	finalStatus := resp.StatusCode
-	if !hasRange && reqStartByte == 0 && resp.StatusCode == http.StatusPartialContent {
-		finalStatus = http.StatusOK
-		w.Header().Del("Content-Range")
-		if totalSizeStr != "*" {
-			w.Header().Set("Content-Length", totalSizeStr)
+	initialStatus := http.StatusOK
+	if hasRange && startByte > 0 {
+		initialStatus = http.StatusPartialContent
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-/*", startByte))
+	}
+
+	headerWritten := false
+	flusher, _ := w.(http.Flusher)
+
+	currentByte := startByte
+	chunkIndex := 0
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return http.StatusOK, nil
+		default:
+		}
+
+		var targetURL string
+		var upstreamRange string
+
+		if currentByte == 0 {
+			targetURL = streamURL
+			upstreamRange = "bytes=0-524287"
+		} else {
+			approxMs := int64((currentByte * 1000) / 19200)
+			if strings.Contains(streamURL, "?") {
+				targetURL = fmt.Sprintf("%s&begin=%d", streamURL, approxMs)
+			} else {
+				targetURL = fmt.Sprintf("%s?begin=%d", streamURL, approxMs)
+			}
+			upstreamRange = "bytes=0-524287"
+		}
+
+		targetParsed, err := url.Parse(targetURL)
+		if err != nil {
+			targetParsed = parsedURL
+		}
+
+		relay := p.GetRelayURL()
+		var isRelayed bool
+		finalReqURL := targetURL
+		if useRelay && relay != "" {
+			finalReqURL = relay
+			isRelayed = true
+		}
+
+		outReq, err := http.NewRequestWithContext(r.Context(), method, finalReqURL, nil)
+		if err != nil {
+			if !headerWritten {
+				return http.StatusInternalServerError, err
+			}
+			return http.StatusOK, nil
+		}
+
+		if isRelayed {
+			outReq.Header.Set("x-relay-target", fmt.Sprintf("https://%s", targetParsed.Host))
+			relayPath := targetParsed.Path
+			if targetParsed.RawQuery != "" {
+				relayPath += "?" + targetParsed.RawQuery
+			}
+			outReq.Header.Set("x-relay-path", relayPath)
+		}
+
+		outReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
+		outReq.Header.Set("Range", upstreamRange)
+
+		resp, err := p.httpClient.Do(outReq)
+		if err != nil {
+			log.Printf("[PROXY-DEBUG] Do err for chunk %d: %v", chunkIndex, err)
+			if !headerWritten {
+				return http.StatusBadGateway, err
+			}
+			return http.StatusOK, nil
+		}
+
+		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusGone {
+			bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+			resp.Body.Close()
+			log.Printf("[PROXY-DEBUG] Upstream %d for chunk %d range %s: %s", resp.StatusCode, chunkIndex, upstreamRange, string(bodySnippet))
+			if !headerWritten {
+				return resp.StatusCode, fmt.Errorf("upstream error %d", resp.StatusCode)
+			}
+			return http.StatusOK, nil
+		}
+
+		chunkData, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil && len(chunkData) == 0 {
+			if !headerWritten {
+				return http.StatusBadGateway, err
+			}
+			return http.StatusOK, nil
+		}
+
+		if len(chunkData) == 0 {
+			break
+		}
+
+		writeBytes := chunkData
+		if chunkIndex > 0 {
+			if pos := bytes.Index(chunkData, clusterID); pos != -1 {
+				writeBytes = chunkData[pos:]
+			}
+		}
+
+		if !headerWritten {
+			w.WriteHeader(initialStatus)
+			headerWritten = true
+		}
+
+		if method != http.MethodHead {
+			if _, err := w.Write(writeBytes); err != nil {
+				return http.StatusOK, nil
+			}
+			if flusher != nil {
+				flusher.Flush()
+			}
+		} else {
+			break
+		}
+
+		currentByte += maxChunkSize
+		chunkIndex++
+
+		if int64(len(chunkData)) < maxChunkSize {
+			break
 		}
 	}
 
-	w.WriteHeader(finalStatus)
-	if method != http.MethodHead {
-		_, _ = io.Copy(w, resp.Body)
-	}
-
-	return finalStatus, nil
+	return http.StatusOK, nil
 }
+
 
