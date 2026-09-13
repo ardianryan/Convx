@@ -444,13 +444,6 @@ function proxyToGo(req, res) {
     },
   };
 
-  let bodyData = null;
-  if (req.body && (typeof req.body === 'object' ? Object.keys(req.body).length > 0 : true)) {
-    bodyData = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-    options.headers['content-type'] = options.headers['content-type'] || 'application/json';
-    options.headers['content-length'] = Buffer.byteLength(bodyData);
-  }
-
   const proxyReq = http.request(options, (proxyRes) => {
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res);
@@ -466,10 +459,15 @@ function proxyToGo(req, res) {
     }
   });
 
-  if (bodyData !== null) {
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    proxyReq.end();
+  } else if (req.body && (typeof req.body === 'object' ? Object.keys(req.body).length > 0 : true)) {
+    const bodyData = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    proxyReq.setHeader('content-type', 'application/json');
+    proxyReq.setHeader('content-length', Buffer.byteLength(bodyData));
     proxyReq.write(bodyData);
     proxyReq.end();
-  } else if (req.readableEnded) {
+  } else if (req.readableEnded || req.complete) {
     proxyReq.end();
   } else {
     req.pipe(proxyReq);
