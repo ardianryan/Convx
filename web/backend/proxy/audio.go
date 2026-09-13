@@ -183,7 +183,7 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 	}
 
 	targetURL := streamURL
-	if startByte > 1000000 {
+	if startByte > 0 {
 		// Calculate approximate seek timestamp in milliseconds (~19,200 bytes/sec for Opus 150kbps)
 		approxMs := int64((startByte * 1000) / 19200)
 		if strings.Contains(targetURL, "?") {
@@ -191,9 +191,8 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		} else {
 			targetURL = fmt.Sprintf("%s?begin=%d", targetURL, approxMs)
 		}
-		startByte = 0
-		endByte = maxChunkSize - 1
-	} else if endByte == -1 || (endByte-startByte+1) > maxChunkSize {
+	}
+	if endByte == -1 || (endByte-startByte+1) > maxChunkSize {
 		endByte = startByte + maxChunkSize - 1
 	}
 
