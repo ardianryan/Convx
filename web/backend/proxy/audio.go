@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -159,17 +160,53 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		method = http.MethodGet
 	}
 
+	const maxChunkSize int64 = 512 * 1024 // 512 KB bounded chunk size for Google Video CDN
+
 	rangeHeader := r.Header.Get("Range")
 	hasRange := rangeHeader != ""
 
-	targetParsed, err := url.Parse(streamURL)
+	var startByte int64 = 0
+	var endByte int64 = -1
+
+	if hasRange && strings.HasPrefix(rangeHeader, "bytes=") {
+		parts := strings.Split(strings.TrimPrefix(rangeHeader, "bytes="), "-")
+		if len(parts) >= 1 && parts[0] != "" {
+			if val, err := strconv.ParseInt(parts[0], 10, 64); err == nil && val >= 0 {
+				startByte = val
+			}
+		}
+		if len(parts) >= 2 && parts[1] != "" {
+			if val, err := strconv.ParseInt(parts[1], 10, 64); err == nil && val >= startByte {
+				endByte = val
+			}
+		}
+	}
+
+	targetURL := streamURL
+	if startByte > 1000000 {
+		// Calculate approximate seek timestamp in milliseconds (~19,200 bytes/sec for Opus 150kbps)
+		approxMs := int64((startByte * 1000) / 19200)
+		if strings.Contains(targetURL, "?") {
+			targetURL = fmt.Sprintf("%s&begin=%d", targetURL, approxMs)
+		} else {
+			targetURL = fmt.Sprintf("%s?begin=%d", targetURL, approxMs)
+		}
+		startByte = 0
+		endByte = maxChunkSize - 1
+	} else if endByte == -1 || (endByte-startByte+1) > maxChunkSize {
+		endByte = startByte + maxChunkSize - 1
+	}
+
+	upstreamRange := fmt.Sprintf("bytes=%d-%d", startByte, endByte)
+
+	targetParsed, err := url.Parse(targetURL)
 	if err != nil {
 		targetParsed = parsedURL
 	}
 
 	relay := p.GetRelayURL()
 	var isRelayed bool
-	finalReqURL := streamURL
+	finalReqURL := targetURL
 	if useRelay && relay != "" {
 		finalReqURL = relay
 		isRelayed = true
@@ -192,9 +229,7 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 	// Google Video CDN requires matching the iOS client User-Agent used during stream extraction
 	outReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
 
-	if hasRange {
-		outReq.Header.Set("Range", rangeHeader)
-	}
+	outReq.Header.Set("Range", upstreamRange)
 
 	resp, err := p.httpClient.Do(outReq)
 	if err != nil {
@@ -206,7 +241,7 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusGone {
 		bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		log.Printf("[PROXY-DEBUG] Upstream %d for Range=%s UA=%s URL=%s body=%s",
-			resp.StatusCode, rangeHeader, outReq.Header.Get("User-Agent"), streamURL[:min(len(streamURL), 100)], string(bodySnippet))
+			resp.StatusCode, upstreamRange, outReq.Header.Get("User-Agent"), targetURL[:min(len(targetURL), 100)], string(bodySnippet))
 		return resp.StatusCode, fmt.Errorf("upstream error %d", resp.StatusCode)
 	}
 
