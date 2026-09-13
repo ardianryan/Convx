@@ -189,11 +189,8 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		outReq.Header.Set("x-relay-path", relayPath)
 	}
 
-	if ua := r.Header.Get("User-Agent"); ua != "" {
-		outReq.Header.Set("User-Agent", ua)
-	} else {
-		outReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
-	}
+	// Google Video CDN requires matching the iOS client User-Agent used during stream extraction
+	outReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
 
 	if hasRange {
 		outReq.Header.Set("Range", rangeHeader)
