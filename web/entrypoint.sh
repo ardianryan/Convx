@@ -3,8 +3,12 @@ set -e
 
 echo "🎵 Convx Music — Starting services..."
 
-# Start Go backend on internal port
+# Ensure data directory exists
+mkdir -p /app/backend/data
+
+# Start Go backend inside /app/backend so it uses /app/backend/data volume
 GO_PORT="${GO_BACKEND_PORT:-7555}"
+cd /app/backend
 PORT="$GO_PORT" /app/convx-go &
 GO_PID=$!
 echo "✅ Go backend started (PID: $GO_PID) on port $GO_PORT"
