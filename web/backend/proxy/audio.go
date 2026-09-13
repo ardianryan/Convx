@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -150,7 +151,55 @@ func (p *AudioProxy) getOrResolveURL(videoID string, resolver func(string) (stri
 	return rawURL, nil
 }
 
-var clusterID = []byte{0x1f, 0x43, 0xb6, 0x75} // WebM Cluster ID
+var clusterID = []byte{0x1f, 0x43, 0xb6, 0x75}  // WebM Cluster ID
+var timecodeID = []byte{0xe7}                   // WebM Timecode ID
+
+func adjustWebMClusterTimecodes(data []byte, offsetMs uint64) {
+	idx := 0
+	for {
+		cPos := bytes.Index(data[idx:], clusterID)
+		if cPos == -1 {
+			break
+		}
+		absPos := idx + cPos
+		searchLimit := absPos + 32
+		if searchLimit > len(data) {
+			searchLimit = len(data)
+		}
+		tcPos := bytes.Index(data[absPos:searchLimit], timecodeID)
+		if tcPos != -1 {
+			actualTcPos := absPos + tcPos
+			if actualTcPos+1 < len(data) {
+				lenByte := data[actualTcPos+1]
+				valLen := int(lenByte & 0x0f)
+				if valLen >= 1 && valLen <= 4 && actualTcPos+2+valLen <= len(data) {
+					tcBytes := data[actualTcPos+2 : actualTcPos+2+valLen]
+					var currentTc uint64
+					if valLen == 1 {
+						currentTc = uint64(tcBytes[0])
+					} else if valLen == 2 {
+						currentTc = uint64(binary.BigEndian.Uint16(tcBytes))
+					} else if valLen == 4 {
+						currentTc = uint64(binary.BigEndian.Uint32(tcBytes))
+					}
+
+					newTc := currentTc + offsetMs
+					if valLen == 1 {
+						data[actualTcPos+2] = byte(newTc)
+					} else if valLen == 2 {
+						binary.BigEndian.PutUint16(data[actualTcPos+2:], uint16(newTc))
+					} else if valLen == 4 {
+						binary.BigEndian.PutUint32(data[actualTcPos+2:], uint32(newTc))
+					}
+				}
+			}
+		}
+		idx = absPos + 4
+		if idx >= len(data) {
+			break
+		}
+	}
+}
 
 func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamURL string, useRelay bool) (int, error) {
 	parsedURL, err := url.Parse(streamURL)
@@ -206,12 +255,13 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 
 		var targetURL string
 		var upstreamRange string
+		var approxMs uint64 = 0
 
 		if currentByte == 0 {
 			targetURL = streamURL
 			upstreamRange = "bytes=0-524287"
 		} else {
-			approxMs := int64((currentByte * 1000) / 19200)
+			approxMs = uint64((currentByte * 1000) / 19200)
 			if strings.Contains(streamURL, "?") {
 				targetURL = fmt.Sprintf("%s&begin=%d", streamURL, approxMs)
 			} else {
@@ -289,6 +339,7 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		if chunkIndex > 0 {
 			if pos := bytes.Index(chunkData, clusterID); pos != -1 {
 				writeBytes = chunkData[pos:]
+				adjustWebMClusterTimecodes(writeBytes, approxMs)
 			}
 		}
 
@@ -318,5 +369,6 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 
 	return http.StatusOK, nil
 }
+
 
 
