@@ -1,5 +1,5 @@
 # ==============================================================================
-# Convx Music — Multi-Stage Docker Build
+# Convx Music — Multi-Stage Docker Build (Optimized Caching)
 # Architecture: Node.js Gateway (port 7554) → Go Backend (port 7555)
 # ==============================================================================
 
@@ -7,27 +7,29 @@
 FROM node:22-alpine AS frontend-builder
 WORKDIR /build/frontend
 COPY frontend/package*.json ./
-RUN npm ci --ignore-scripts
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 COPY frontend/ ./
 RUN npm run build
 # Output: /build/backend/dist (vite.config.js outDir: '../backend/dist')
 
 # Stage 2: Build Go Backend (Static Binary)
-FROM golang:1.27-alpine AS go-builder
+FROM golang:1.24-alpine AS go-builder
 ENV GOTOOLCHAIN=auto
 WORKDIR /build/backend
 COPY backend/go.mod backend/go.sum* ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY backend/ ./
 COPY --from=frontend-builder /build/backend/dist ./dist
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /convx-go .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /convx-go .
 
 # Stage 3: Install Node.js Gateway Dependencies
 FROM node:22-alpine AS node-builder
 RUN apk add --no-cache python3 make g++
 WORKDIR /build/server
 COPY server/package*.json ./
-RUN npm ci --omit=dev
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 COPY server/ ./
 
 # Stage 4: Production Image
