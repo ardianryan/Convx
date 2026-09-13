@@ -182,21 +182,41 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		}
 	}
 
+	reqStartByte := startByte
+	reqEndByte := endByte
+
 	targetURL := streamURL
-	if startByte > 0 {
+	var upstreamStartByte int64 = startByte
+	var upstreamEndByte int64 = endByte
+
+	if reqStartByte > 0 {
 		// Calculate approximate seek timestamp in milliseconds (~19,200 bytes/sec for Opus 150kbps)
-		approxMs := int64((startByte * 1000) / 19200)
+		approxMs := int64((reqStartByte * 1000) / 19200)
 		if strings.Contains(targetURL, "?") {
 			targetURL = fmt.Sprintf("%s&begin=%d", targetURL, approxMs)
 		} else {
 			targetURL = fmt.Sprintf("%s?begin=%d", targetURL, approxMs)
 		}
-	}
-	if endByte == -1 || (endByte-startByte+1) > maxChunkSize {
-		endByte = startByte + maxChunkSize - 1
+		// When &begin=approxMs is appended, Google Video CDN resets stream offset to 0
+		upstreamStartByte = 0
+		chunkLen := maxChunkSize
+		if reqEndByte != -1 && reqEndByte >= reqStartByte {
+			chunkLen = reqEndByte - reqStartByte + 1
+			if chunkLen > maxChunkSize {
+				chunkLen = maxChunkSize
+			}
+		}
+		upstreamEndByte = chunkLen - 1
+		reqEndByte = reqStartByte + chunkLen - 1
+	} else {
+		if reqEndByte == -1 || (reqEndByte-reqStartByte+1) > maxChunkSize {
+			reqEndByte = reqStartByte + maxChunkSize - 1
+		}
+		upstreamStartByte = reqStartByte
+		upstreamEndByte = reqEndByte
 	}
 
-	upstreamRange := fmt.Sprintf("bytes=%d-%d", startByte, endByte)
+	upstreamRange := fmt.Sprintf("bytes=%d-%d", upstreamStartByte, upstreamEndByte)
 
 	targetParsed, err := url.Parse(targetURL)
 	if err != nil {
@@ -245,10 +265,21 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 	}
 
 	// Forward streaming headers
-	for _, h := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"} {
+	for _, h := range []string{"Content-Type", "Content-Length", "Accept-Ranges"} {
 		if val := resp.Header.Get(h); val != "" {
 			w.Header().Set(h, val)
 		}
+	}
+
+	totalSizeStr := "*"
+	if cr := resp.Header.Get("Content-Range"); cr != "" {
+		if parts := strings.Split(cr, "/"); len(parts) == 2 {
+			totalSizeStr = parts[1]
+		}
+	}
+
+	if hasRange || reqStartByte > 0 {
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%s", reqStartByte, reqEndByte, totalSizeStr))
 	}
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -257,13 +288,11 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 
 	finalStatus := resp.StatusCode
-	if !hasRange && resp.StatusCode == http.StatusPartialContent {
+	if !hasRange && reqStartByte == 0 && resp.StatusCode == http.StatusPartialContent {
 		finalStatus = http.StatusOK
 		w.Header().Del("Content-Range")
-		if cr := resp.Header.Get("Content-Range"); cr != "" {
-			if parts := strings.Split(cr, "/"); len(parts) == 2 && parts[1] != "*" {
-				w.Header().Set("Content-Length", parts[1])
-			}
+		if totalSizeStr != "*" {
+			w.Header().Set("Content-Length", totalSizeStr)
 		}
 	}
 
