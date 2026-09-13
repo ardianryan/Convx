@@ -157,6 +157,23 @@ func (c *Client) doRequestWithFallback(method, targetBase, targetPath string, bo
 	return c.httpClient.Do(req)
 }
 
+func (c *Client) doDirectRequest(method, targetBase, targetPath string, bodyBytes []byte, userAgent string, referer string) (*http.Response, error) {
+	req, err := http.NewRequest(method, targetBase+targetPath, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if userAgent != "" {
+		req.Header.Set("User-Agent", userAgent)
+	}
+	if referer != "" {
+		req.Header.Set("Referer", referer)
+	}
+	c.applyAuthHeaders(req)
+
+	return c.httpClient.Do(req)
+}
+
 func parseCookieString(raw string) map[string]string {
 	cookies := make(map[string]string)
 	for _, part := range strings.Split(raw, ";") {
@@ -317,7 +334,7 @@ func (c *Client) requestStreamWithClient(videoID string, cfg ClientConfig) (*Str
 		targetBase = youtubeMusicBase
 	}
 
-	resp, err := c.doRequestWithFallback("POST", targetBase, "/player", bodyBytes, cfg.UserAgent, "")
+	resp, err := c.doDirectRequest("POST", targetBase, "/player", bodyBytes, cfg.UserAgent, "")
 	if err != nil {
 		return nil, err
 	}
