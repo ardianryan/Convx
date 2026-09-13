@@ -30,7 +30,11 @@ type AudioProxy struct {
 func (p *AudioProxy) SetRelayURL(url string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.relayURL = strings.TrimSpace(url)
+	cleaned := strings.TrimSpace(url)
+	if cleaned != "" && !strings.HasPrefix(cleaned, "http://") && !strings.HasPrefix(cleaned, "https://") {
+		cleaned = "https://" + cleaned
+	}
+	p.relayURL = cleaned
 	if p.relayURL != "" {
 		log.Printf("[AudioProxy] Cloudflare Relay enabled: %s", p.relayURL)
 	} else {

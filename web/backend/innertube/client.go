@@ -92,7 +92,11 @@ func (c *Client) ClearCookie() {
 func (c *Client) SetRelayURL(url string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.relayURL = strings.TrimSpace(url)
+	cleaned := strings.TrimSpace(url)
+	if cleaned != "" && !strings.HasPrefix(cleaned, "http://") && !strings.HasPrefix(cleaned, "https://") {
+		cleaned = "https://" + cleaned
+	}
+	c.relayURL = cleaned
 	if c.relayURL != "" {
 		log.Printf("[InnerTube] Cloudflare Relay enabled: %s", c.relayURL)
 	} else {
