@@ -154,51 +154,65 @@ func (p *AudioProxy) getOrResolveURL(videoID string, resolver func(string) (stri
 var clusterID = []byte{0x1f, 0x43, 0xb6, 0x75}  // WebM Cluster ID
 var timecodeID = []byte{0xe7}                   // WebM Timecode ID
 
-func adjustWebMClusterTimecodes(data []byte, offsetMs uint64) {
+func adjustWebMClusterTimecodesFixed(data []byte, offsetMs uint64) []byte {
+	var out bytes.Buffer
+
 	idx := 0
 	for {
 		cPos := bytes.Index(data[idx:], clusterID)
 		if cPos == -1 {
+			out.Write(data[idx:])
 			break
 		}
 		absPos := idx + cPos
+		out.Write(data[idx:absPos])
+
 		searchLimit := absPos + 32
 		if searchLimit > len(data) {
 			searchLimit = len(data)
 		}
+
 		tcPos := bytes.Index(data[absPos:searchLimit], timecodeID)
 		if tcPos != -1 {
 			actualTcPos := absPos + tcPos
-			if actualTcPos+1 < len(data) {
-				lenByte := data[actualTcPos+1]
-				valLen := int(lenByte & 0x0f)
-				if valLen >= 1 && valLen <= 4 && actualTcPos+2+valLen <= len(data) {
-					tcBytes := data[actualTcPos+2 : actualTcPos+2+valLen]
-					var currentTc uint64
-					if valLen == 1 {
-						currentTc = uint64(tcBytes[0])
-					} else if valLen == 2 {
-						currentTc = uint64(binary.BigEndian.Uint16(tcBytes))
-					} else if valLen == 4 {
-						currentTc = uint64(binary.BigEndian.Uint32(tcBytes))
-					}
+			out.Write(data[absPos:actualTcPos])
 
-					newTc := currentTc + offsetMs
-					if valLen == 1 {
-						data[actualTcPos+2] = byte(newTc)
-					} else if valLen == 2 {
-						binary.BigEndian.PutUint16(data[actualTcPos+2:], uint16(newTc))
-					} else if valLen == 4 {
-						binary.BigEndian.PutUint32(data[actualTcPos+2:], uint32(newTc))
-					}
+			lenByte := data[actualTcPos+1]
+			valLen := int(lenByte & 0x0f)
+
+			if valLen >= 1 && valLen <= 4 && actualTcPos+2+valLen <= len(data) {
+				tcBytes := data[actualTcPos+2 : actualTcPos+2+valLen]
+				var currentTc uint64
+				if valLen == 1 {
+					currentTc = uint64(tcBytes[0])
+				} else if valLen == 2 {
+					currentTc = uint64(binary.BigEndian.Uint16(tcBytes))
+				} else if valLen == 3 {
+					currentTc = uint64(tcBytes[0])<<16 | uint64(tcBytes[1])<<8 | uint64(tcBytes[2])
+				} else if valLen == 4 {
+					currentTc = uint64(binary.BigEndian.Uint32(tcBytes))
 				}
+
+				newTc := uint32(currentTc + offsetMs)
+
+				out.WriteByte(0xe7)
+				out.WriteByte(0x84)
+				var b4 [4]byte
+				binary.BigEndian.PutUint32(b4[:], newTc)
+				out.Write(b4[:])
+
+				idx = actualTcPos + 2 + valLen
+			} else {
+				out.Write(data[absPos : absPos+4])
+				idx = absPos + 4
 			}
-		}
-		idx = absPos + 4
-		if idx >= len(data) {
-			break
+		} else {
+			out.Write(data[absPos : absPos+4])
+			idx = absPos + 4
 		}
 	}
+
+	return out.Bytes()
 }
 
 func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamURL string, useRelay bool) (int, error) {
@@ -338,8 +352,8 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		writeBytes := chunkData
 		if chunkIndex > 0 {
 			if pos := bytes.Index(chunkData, clusterID); pos != -1 {
-				writeBytes = chunkData[pos:]
-				adjustWebMClusterTimecodes(writeBytes, approxMs)
+				rawClusters := chunkData[pos:]
+				writeBytes = adjustWebMClusterTimecodesFixed(rawClusters, approxMs)
 			}
 		}
 
