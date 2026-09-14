@@ -80,6 +80,8 @@ func (p *AudioProxy) ServeVideo(w http.ResponseWriter, r *http.Request, videoID 
 		return
 	}
 
+	hasRelay := p.GetRelayURL() != ""
+
 	targetURL, err := p.getOrResolveURL(videoID, resolver, false)
 	if err != nil {
 		log.Printf("[PROXY] Failed to resolve stream for %s: %v", videoID, err)
@@ -87,12 +89,12 @@ func (p *AudioProxy) ServeVideo(w http.ResponseWriter, r *http.Request, videoID 
 		return
 	}
 
-	statusCode, err := p.streamChunk(w, r, targetURL, false)
+	statusCode, err := p.streamChunk(w, r, targetURL, hasRelay)
 	if err != nil || statusCode >= 400 {
 		log.Printf("[PROXY] Stream status %d (err %v) for %s. Refreshing stream URL...", statusCode, err, videoID)
 		freshURL, resolveErr := p.getOrResolveURL(videoID, resolver, true)
 		if resolveErr == nil && freshURL != "" {
-			directStatus, directErr := p.streamChunk(w, r, freshURL, false)
+			directStatus, directErr := p.streamChunk(w, r, freshURL, hasRelay)
 			if directErr == nil && directStatus < 400 {
 				return
 			}
