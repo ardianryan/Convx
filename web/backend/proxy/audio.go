@@ -329,12 +329,32 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusGone {
 			bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 			resp.Body.Close()
-			log.Printf("[PROXY-DEBUG] Upstream %d for chunk %d range %s: %s", resp.StatusCode, chunkIndex, upstreamRange, string(bodySnippet))
+			log.Printf("[PROXY-DEBUG] Upstream %d for chunk %d (useRelay=%t) range %s: %s. Retrying direct...", resp.StatusCode, chunkIndex, useRelay, upstreamRange, string(bodySnippet))
+
+			if isRelayed {
+				// Retry current chunk directly without Cloudflare Relay
+				directReq, dErr := http.NewRequestWithContext(r.Context(), method, targetURL, nil)
+				if dErr == nil {
+					directReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
+					directReq.Header.Set("Range", upstreamRange)
+					dResp, dDoErr := p.httpClient.Do(directReq)
+					if dDoErr == nil && dResp.StatusCode < 400 {
+						resp = dResp
+						goto processChunkBody
+					}
+					if dResp != nil {
+						dResp.Body.Close()
+					}
+				}
+			}
+
 			if !headerWritten {
 				return resp.StatusCode, fmt.Errorf("upstream error %d", resp.StatusCode)
 			}
 			return http.StatusOK, nil
 		}
+
+processChunkBody:
 
 		chunkData, err := io.ReadAll(resp.Body)
 		resp.Body.Close()

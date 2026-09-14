@@ -338,7 +338,7 @@ func (c *Client) requestStreamWithClient(videoID string, cfg ClientConfig) (*Str
 		targetBase = youtubeMusicBase
 	}
 
-	resp, err := c.doDirectRequest("POST", targetBase, "/player", bodyBytes, cfg.UserAgent, "")
+	resp, err := c.doRequestWithFallback("POST", targetBase, "/player", bodyBytes, cfg.UserAgent, "")
 	if err != nil {
 		return nil, err
 	}
