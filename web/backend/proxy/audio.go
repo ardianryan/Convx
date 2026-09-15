@@ -60,6 +60,9 @@ func NewAudioProxy() *AudioProxy {
 					if r := via[0].Header.Get("Range"); r != "" {
 						req.Header.Set("Range", r)
 					}
+					if ua := via[0].Header.Get("User-Agent"); ua != "" {
+						req.Header.Set("User-Agent", ua)
+					}
 				}
 				return nil
 			},
@@ -77,8 +80,6 @@ func (p *AudioProxy) ServeVideo(w http.ResponseWriter, r *http.Request, videoID 
 		return
 	}
 
-	hasRelay := p.GetRelayURL() != ""
-
 	targetURL, err := p.getOrResolveURL(videoID, resolver, false)
 	if err != nil {
 		log.Printf("[PROXY] Failed to resolve stream for %s: %v", videoID, err)
@@ -86,12 +87,12 @@ func (p *AudioProxy) ServeVideo(w http.ResponseWriter, r *http.Request, videoID 
 		return
 	}
 
-	statusCode, err := p.streamChunk(w, r, targetURL, hasRelay)
+	statusCode, err := p.streamChunk(w, r, targetURL)
 	if err != nil || statusCode >= 400 {
 		log.Printf("[PROXY] Stream status %d (err %v) for %s. Refreshing stream URL...", statusCode, err, videoID)
 		freshURL, resolveErr := p.getOrResolveURL(videoID, resolver, true)
 		if resolveErr == nil && freshURL != "" {
-			directStatus, directErr := p.streamChunk(w, r, freshURL, hasRelay)
+			directStatus, directErr := p.streamChunk(w, r, freshURL)
 			if directErr == nil && directStatus < 400 {
 				return
 			}
@@ -108,15 +109,9 @@ func (p *AudioProxy) ServeURL(w http.ResponseWriter, r *http.Request, rawURL str
 		http.Error(w, "missing stream url", http.StatusBadRequest)
 		return
 	}
-	hasRelay := p.GetRelayURL() != ""
-	status, err := p.streamChunk(w, r, rawURL, hasRelay)
+	status, err := p.streamChunk(w, r, rawURL)
 	if err != nil || status >= 400 {
-		if hasRelay {
-			_, err = p.streamChunk(w, r, rawURL, false)
-		}
-	}
-	if err != nil {
-		log.Printf("[PROXY] ServeURL error: %v", err)
+		log.Printf("[PROXY] ServeURL error (status %d): %v", status, err)
 	}
 }
 
@@ -150,7 +145,7 @@ func (p *AudioProxy) getOrResolveURL(videoID string, resolver func(string) (stri
 	return rawURL, nil
 }
 
-func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamURL string, useRelay bool) (int, error) {
+func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamURL string) (int, error) {
 	parsedURL, err := url.Parse(streamURL)
 	if err != nil || (!strings.HasSuffix(parsedURL.Host, "googlevideo.com") && !strings.HasSuffix(parsedURL.Host, "youtube.com")) {
 		return http.StatusForbidden, fmt.Errorf("invalid host: %s", parsedURL.Host)
@@ -161,83 +156,37 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		method = http.MethodGet
 	}
 
-	relay := p.GetRelayURL()
-	var isRelayed bool
-	finalReqURL := streamURL
-	if useRelay && relay != "" {
-		finalReqURL = relay
-		isRelayed = true
-	}
-
-	outReq, err := http.NewRequestWithContext(r.Context(), method, finalReqURL, nil)
+	outReq, err := http.NewRequestWithContext(r.Context(), method, streamURL, nil)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
 
-	if isRelayed {
-		outReq.Header.Set("x-relay-target", fmt.Sprintf("https://%s", parsedURL.Host))
-		relayPath := parsedURL.Path
-		if parsedURL.RawQuery != "" {
-			relayPath += "?" + parsedURL.RawQuery
-		}
-		outReq.Header.Set("x-relay-path", relayPath)
+	ua := "com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip"
+	if strings.Contains(streamURL, "c=IOS") {
+		ua = "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)"
 	}
+	outReq.Header.Set("User-Agent", ua)
 
-	outReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
-	if rangeHeader := r.Header.Get("Range"); rangeHeader != "" {
+	rangeHeader := r.Header.Get("Range")
+	if rangeHeader != "" {
 		outReq.Header.Set("Range", rangeHeader)
+	} else if strings.Contains(streamURL, "c=IOS") {
+		outReq.Header.Set("Range", "bytes=0-524287")
 	}
 
 	resp, err := p.httpClient.Do(outReq)
 	if err != nil {
-		log.Printf("[PROXY] Do error (isRelayed=%t): %v", isRelayed, err)
-		if isRelayed {
-			// Retry direct once
-			directReq, dErr := http.NewRequestWithContext(r.Context(), method, streamURL, nil)
-			if dErr == nil {
-				directReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
-				if rangeHeader := r.Header.Get("Range"); rangeHeader != "" {
-					directReq.Header.Set("Range", rangeHeader)
-				}
-				dResp, dDoErr := p.httpClient.Do(directReq)
-				if dDoErr == nil {
-					resp = dResp
-					err = nil
-				}
-			}
-		}
-		if err != nil {
-			return http.StatusBadGateway, err
-		}
+		log.Printf("[PROXY] Request error: %v", err)
+		return http.StatusBadGateway, err
 	}
 
 	if resp.StatusCode >= 400 {
 		bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		resp.Body.Close()
-		log.Printf("[PROXY] Upstream status %d (isRelayed=%t): %s", resp.StatusCode, isRelayed, string(bodySnippet))
-
-		if isRelayed {
-			// Retry direct once
-			directReq, dErr := http.NewRequestWithContext(r.Context(), method, streamURL, nil)
-			if dErr == nil {
-				directReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
-				if rangeHeader := r.Header.Get("Range"); rangeHeader != "" {
-					directReq.Header.Set("Range", rangeHeader)
-				}
-				dResp, dDoErr := p.httpClient.Do(directReq)
-				if dDoErr == nil && dResp.StatusCode < 400 {
-					resp = dResp
-					goto processResponse
-				}
-				if dResp != nil {
-					dResp.Body.Close()
-				}
-			}
-		}
+		log.Printf("[PROXY] Upstream status %d: %s", resp.StatusCode, string(bodySnippet))
 		return resp.StatusCode, fmt.Errorf("upstream error %d", resp.StatusCode)
 	}
 
-processResponse:
 	defer resp.Body.Close()
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")

@@ -237,6 +237,14 @@ type ClientConfig struct {
 
 var clientHierarchy = []ClientConfig{
 	{
+		Name:        "ANDROID",
+		Version:     "20.10.38",
+		UserAgent:   "com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip",
+		OsName:      "Android",
+		OsVersion:   "11",
+		SdkVer:      30,
+	},
+	{
 		Name:        "IOS",
 		Version:     "20.08.3",
 		UserAgent:   "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)",
@@ -265,29 +273,10 @@ var clientHierarchy = []ClientConfig{
 	},
 }
 
-// GetStream resolves the audio stream for a given YouTube video ID
-// If user has a cookie set, it uses IOS with authentication first.
 func (c *Client) GetStream(videoID string) (*StreamInfo, error) {
 	var lastErr error
 
-	var hierarchy []ClientConfig
-	if c.HasCookie() {
-		hierarchy = append([]ClientConfig{
-			{
-				Name:        "IOS",
-				Version:     "20.08.3",
-				UserAgent:   "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)",
-				DeviceMake:  "Apple",
-				DeviceModel: "iPhone15,2",
-				OsName:      "iOS",
-				OsVersion:   "18.0",
-			},
-		}, clientHierarchy...)
-	} else {
-		hierarchy = clientHierarchy
-	}
-
-	for _, cfg := range hierarchy {
+	for _, cfg := range clientHierarchy {
 		stream, err := c.requestStreamWithClient(videoID, cfg)
 		if err == nil && stream != nil && stream.StreamURL != "" {
 			return stream, nil
@@ -338,7 +327,15 @@ func (c *Client) requestStreamWithClient(videoID string, cfg ClientConfig) (*Str
 		targetBase = youtubeMusicBase
 	}
 
-	resp, err := c.doRequestWithFallback("POST", targetBase, "/player", bodyBytes, cfg.UserAgent, "")
+	// Try direct player request first so Google Video CDN binds the stream URL to this server's IP address
+	resp, err := c.doDirectRequest("POST", targetBase, "/player", bodyBytes, cfg.UserAgent, "")
+	if err != nil || (resp != nil && resp.StatusCode != http.StatusOK) {
+		if resp != nil {
+			resp.Body.Close()
+		}
+		// Fallback to relay if direct connection fails
+		resp, err = c.doRequestWithFallback("POST", targetBase, "/player", bodyBytes, cfg.UserAgent, "")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -354,22 +351,40 @@ func (c *Client) requestStreamWithClient(videoID string, cfg ClientConfig) (*Str
 	}
 
 	if playerResp.PlayabilityStatus.Status != "OK" {
+		// Fallback to relay if direct player request had playability error
+		if c.GetRelayURL() != "" {
+			if rResp, rErr := c.doRequestWithFallback("POST", targetBase, "/player", bodyBytes, cfg.UserAgent, ""); rErr == nil && rResp.StatusCode == http.StatusOK {
+				var rPlayerResp PlayerResponse
+				if rDecodeErr := json.NewDecoder(rResp.Body).Decode(&rPlayerResp); rDecodeErr == nil && rPlayerResp.PlayabilityStatus.Status == "OK" {
+					playerResp = rPlayerResp
+					rResp.Body.Close()
+					goto selectAudioFormat
+				}
+				rResp.Body.Close()
+			}
+		}
 		return nil, fmt.Errorf("playability: %s (%s)", playerResp.PlayabilityStatus.Status, playerResp.PlayabilityStatus.Reason)
 	}
 
+selectAudioFormat:
+
 	var audioFormats []Format
+
+	// Check combined formats first (e.g. Itag 18 360p MP4 with AAC-LC audio)
+	// Combined formats have ratebypass=yes and do NOT enforce the 1MB PO-token cutoff!
+	for _, f := range playerResp.StreamingData.Formats {
+		if f.URL != "" && (f.Itag == 18 || strings.Contains(f.MimeType, "mp4a") || f.AudioQuality != "" || strings.HasPrefix(f.MimeType, "audio/")) {
+			audioFormats = append(audioFormats, f)
+		}
+	}
+
+	// Then check adaptive audio formats
 	for _, f := range playerResp.StreamingData.AdaptiveFormats {
 		if strings.HasPrefix(f.MimeType, "audio/") && f.URL != "" {
 			audioFormats = append(audioFormats, f)
 		}
 	}
-	if len(audioFormats) == 0 {
-		for _, f := range playerResp.StreamingData.Formats {
-			if strings.HasPrefix(f.MimeType, "audio/") && f.URL != "" {
-				audioFormats = append(audioFormats, f)
-			}
-		}
-	}
+
 	if len(audioFormats) == 0 {
 		return nil, fmt.Errorf("no direct audio streams")
 	}
@@ -379,8 +394,11 @@ func (c *Client) requestStreamWithClient(videoID string, cfg ClientConfig) (*Str
 
 	for _, f := range audioFormats {
 		score := f.Bitrate
-		if strings.HasPrefix(f.MimeType, "audio/mp4") {
-			score += 20000 // preference bonus for M4A AAC (clean Range streaming)
+		// Priority 1: Itag 18 (combined MP4 with AAC-LC) has complete range support and ratebypass
+		if f.Itag == 18 {
+			score += 1000000
+		} else if strings.HasPrefix(f.MimeType, "audio/mp4") {
+			score += 20000 // preference bonus for M4A AAC
 		}
 		if score > bestScore {
 			bestScore = score
