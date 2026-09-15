@@ -379,8 +379,8 @@ func (c *Client) requestStreamWithClient(videoID string, cfg ClientConfig) (*Str
 
 	for _, f := range audioFormats {
 		score := f.Bitrate
-		if strings.HasPrefix(f.MimeType, "audio/webm") {
-			score += 15000 // preference bonus for Opus
+		if strings.HasPrefix(f.MimeType, "audio/mp4") {
+			score += 20000 // preference bonus for M4A AAC (clean Range streaming)
 		}
 		if score > bestScore {
 			bestScore = score

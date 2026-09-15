@@ -1,15 +1,12 @@
 package proxy
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -153,70 +150,6 @@ func (p *AudioProxy) getOrResolveURL(videoID string, resolver func(string) (stri
 	return rawURL, nil
 }
 
-var clusterID = []byte{0x1f, 0x43, 0xb6, 0x75}  // WebM Cluster ID
-var timecodeID = []byte{0xe7}                   // WebM Timecode ID
-
-func adjustWebMClusterTimecodesFixed(data []byte, offsetMs uint64) []byte {
-	var out bytes.Buffer
-
-	idx := 0
-	for {
-		cPos := bytes.Index(data[idx:], clusterID)
-		if cPos == -1 {
-			out.Write(data[idx:])
-			break
-		}
-		absPos := idx + cPos
-		out.Write(data[idx:absPos])
-
-		searchLimit := absPos + 32
-		if searchLimit > len(data) {
-			searchLimit = len(data)
-		}
-
-		tcPos := bytes.Index(data[absPos:searchLimit], timecodeID)
-		if tcPos != -1 {
-			actualTcPos := absPos + tcPos
-			out.Write(data[absPos:actualTcPos])
-
-			lenByte := data[actualTcPos+1]
-			valLen := int(lenByte & 0x0f)
-
-			if valLen >= 1 && valLen <= 4 && actualTcPos+2+valLen <= len(data) {
-				tcBytes := data[actualTcPos+2 : actualTcPos+2+valLen]
-				var currentTc uint64
-				if valLen == 1 {
-					currentTc = uint64(tcBytes[0])
-				} else if valLen == 2 {
-					currentTc = uint64(binary.BigEndian.Uint16(tcBytes))
-				} else if valLen == 3 {
-					currentTc = uint64(tcBytes[0])<<16 | uint64(tcBytes[1])<<8 | uint64(tcBytes[2])
-				} else if valLen == 4 {
-					currentTc = uint64(binary.BigEndian.Uint32(tcBytes))
-				}
-
-				newTc := uint32(currentTc + offsetMs)
-
-				out.WriteByte(0xe7)
-				out.WriteByte(0x84)
-				var b4 [4]byte
-				binary.BigEndian.PutUint32(b4[:], newTc)
-				out.Write(b4[:])
-
-				idx = actualTcPos + 2 + valLen
-			} else {
-				out.Write(data[absPos : absPos+4])
-				idx = absPos + 4
-			}
-		} else {
-			out.Write(data[absPos : absPos+4])
-			idx = absPos + 4
-		}
-	}
-
-	return out.Bytes()
-}
-
 func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamURL string, useRelay bool) (int, error) {
 	parsedURL, err := url.Parse(streamURL)
 	if err != nil || (!strings.HasSuffix(parsedURL.Host, "googlevideo.com") && !strings.HasSuffix(parsedURL.Host, "youtube.com")) {
@@ -228,179 +161,109 @@ func (p *AudioProxy) streamChunk(w http.ResponseWriter, r *http.Request, streamU
 		method = http.MethodGet
 	}
 
-	const maxChunkSize int64 = 512 * 1024 // 512 KB bounded chunk size for Google Video CDN
+	relay := p.GetRelayURL()
+	var isRelayed bool
+	finalReqURL := streamURL
+	if useRelay && relay != "" {
+		finalReqURL = relay
+		isRelayed = true
+	}
 
-	rangeHeader := r.Header.Get("Range")
-	hasRange := rangeHeader != ""
+	outReq, err := http.NewRequestWithContext(r.Context(), method, finalReqURL, nil)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
 
-	var startByte int64 = 0
-	if hasRange && strings.HasPrefix(rangeHeader, "bytes=") {
-		parts := strings.Split(strings.TrimPrefix(rangeHeader, "bytes="), "-")
-		if len(parts) >= 1 && parts[0] != "" {
-			if val, err := strconv.ParseInt(parts[0], 10, 64); err == nil && val >= 0 {
-				startByte = val
+	if isRelayed {
+		outReq.Header.Set("x-relay-target", fmt.Sprintf("https://%s", parsedURL.Host))
+		relayPath := parsedURL.Path
+		if parsedURL.RawQuery != "" {
+			relayPath += "?" + parsedURL.RawQuery
+		}
+		outReq.Header.Set("x-relay-path", relayPath)
+	}
+
+	outReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
+	if rangeHeader := r.Header.Get("Range"); rangeHeader != "" {
+		outReq.Header.Set("Range", rangeHeader)
+	}
+
+	resp, err := p.httpClient.Do(outReq)
+	if err != nil {
+		log.Printf("[PROXY] Do error (isRelayed=%t): %v", isRelayed, err)
+		if isRelayed {
+			// Retry direct once
+			directReq, dErr := http.NewRequestWithContext(r.Context(), method, streamURL, nil)
+			if dErr == nil {
+				directReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
+				if rangeHeader := r.Header.Get("Range"); rangeHeader != "" {
+					directReq.Header.Set("Range", rangeHeader)
+				}
+				dResp, dDoErr := p.httpClient.Do(directReq)
+				if dDoErr == nil {
+					resp = dResp
+					err = nil
+				}
 			}
 		}
+		if err != nil {
+			return http.StatusBadGateway, err
+		}
 	}
+
+	if resp.StatusCode >= 400 {
+		bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		resp.Body.Close()
+		log.Printf("[PROXY] Upstream status %d (isRelayed=%t): %s", resp.StatusCode, isRelayed, string(bodySnippet))
+
+		if isRelayed {
+			// Retry direct once
+			directReq, dErr := http.NewRequestWithContext(r.Context(), method, streamURL, nil)
+			if dErr == nil {
+				directReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
+				if rangeHeader := r.Header.Get("Range"); rangeHeader != "" {
+					directReq.Header.Set("Range", rangeHeader)
+				}
+				dResp, dDoErr := p.httpClient.Do(directReq)
+				if dDoErr == nil && dResp.StatusCode < 400 {
+					resp = dResp
+					goto processResponse
+				}
+				if dResp != nil {
+					dResp.Body.Close()
+				}
+			}
+		}
+		return resp.StatusCode, fmt.Errorf("upstream error %d", resp.StatusCode)
+	}
+
+processResponse:
+	defer resp.Body.Close()
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Range")
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges")
 	w.Header().Set("Accept-Ranges", "bytes")
-	w.Header().Set("Content-Type", "audio/webm; codecs=opus")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 
-	initialStatus := http.StatusOK
-	if hasRange && startByte > 0 {
-		initialStatus = http.StatusPartialContent
-		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-/*", startByte))
+	if ct := resp.Header.Get("Content-Type"); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	} else {
+		w.Header().Set("Content-Type", "audio/mp4")
 	}
 
-	headerWritten := false
-	flusher, _ := w.(http.Flusher)
+	if cr := resp.Header.Get("Content-Range"); cr != "" {
+		w.Header().Set("Content-Range", cr)
+	}
+	if cl := resp.Header.Get("Content-Length"); cl != "" {
+		w.Header().Set("Content-Length", cl)
+	}
 
-	currentByte := startByte
-	chunkIndex := 0
+	w.WriteHeader(resp.StatusCode)
 
-	for {
-		select {
-		case <-r.Context().Done():
-			return http.StatusOK, nil
-		default:
-		}
-
-		var targetURL string
-		var upstreamRange string
-		var approxMs uint64 = 0
-
-		if currentByte == 0 {
-			targetURL = streamURL
-			upstreamRange = "bytes=0-524287"
-		} else {
-			approxMs = uint64((currentByte * 1000) / 19200)
-			if strings.Contains(streamURL, "?") {
-				targetURL = fmt.Sprintf("%s&begin=%d", streamURL, approxMs)
-			} else {
-				targetURL = fmt.Sprintf("%s?begin=%d", streamURL, approxMs)
-			}
-			upstreamRange = "bytes=0-524287"
-		}
-
-		targetParsed, err := url.Parse(targetURL)
-		if err != nil {
-			targetParsed = parsedURL
-		}
-
-		relay := p.GetRelayURL()
-		var isRelayed bool
-		finalReqURL := targetURL
-		if useRelay && relay != "" {
-			finalReqURL = relay
-			isRelayed = true
-		}
-
-		outReq, err := http.NewRequestWithContext(r.Context(), method, finalReqURL, nil)
-		if err != nil {
-			if !headerWritten {
-				return http.StatusInternalServerError, err
-			}
-			return http.StatusOK, nil
-		}
-
-		if isRelayed {
-			outReq.Header.Set("x-relay-target", fmt.Sprintf("https://%s", targetParsed.Host))
-			relayPath := targetParsed.Path
-			if targetParsed.RawQuery != "" {
-				relayPath += "?" + targetParsed.RawQuery
-			}
-			outReq.Header.Set("x-relay-path", relayPath)
-		}
-
-		outReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
-		outReq.Header.Set("Range", upstreamRange)
-
-		resp, err := p.httpClient.Do(outReq)
-		if err != nil {
-			log.Printf("[PROXY-DEBUG] Do err for chunk %d: %v", chunkIndex, err)
-			if !headerWritten {
-				return http.StatusBadGateway, err
-			}
-			return http.StatusOK, nil
-		}
-
-		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusGone {
-			bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-			resp.Body.Close()
-			log.Printf("[PROXY-DEBUG] Upstream %d for chunk %d (useRelay=%t) range %s: %s. Retrying direct...", resp.StatusCode, chunkIndex, useRelay, upstreamRange, string(bodySnippet))
-
-			if isRelayed {
-				// Retry current chunk directly without Cloudflare Relay
-				directReq, dErr := http.NewRequestWithContext(r.Context(), method, targetURL, nil)
-				if dErr == nil {
-					directReq.Header.Set("User-Agent", "com.google.ios.youtube/20.08.3 (iPhone15,2; U; CPU iOS 18_0 like Mac OS X)")
-					directReq.Header.Set("Range", upstreamRange)
-					dResp, dDoErr := p.httpClient.Do(directReq)
-					if dDoErr == nil && dResp.StatusCode < 400 {
-						resp = dResp
-						goto processChunkBody
-					}
-					if dResp != nil {
-						dResp.Body.Close()
-					}
-				}
-			}
-
-			if !headerWritten {
-				return resp.StatusCode, fmt.Errorf("upstream error %d", resp.StatusCode)
-			}
-			return http.StatusOK, nil
-		}
-
-processChunkBody:
-
-		chunkData, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil && len(chunkData) == 0 {
-			if !headerWritten {
-				return http.StatusBadGateway, err
-			}
-			return http.StatusOK, nil
-		}
-
-		if len(chunkData) == 0 {
-			break
-		}
-
-		writeBytes := chunkData
-		if chunkIndex > 0 {
-			if pos := bytes.Index(chunkData, clusterID); pos != -1 {
-				rawClusters := chunkData[pos:]
-				writeBytes = adjustWebMClusterTimecodesFixed(rawClusters, approxMs)
-			}
-		}
-
-		if !headerWritten {
-			w.WriteHeader(initialStatus)
-			headerWritten = true
-		}
-
-		if method != http.MethodHead {
-			if _, err := w.Write(writeBytes); err != nil {
-				return http.StatusOK, nil
-			}
-			if flusher != nil {
-				flusher.Flush()
-			}
-		} else {
-			break
-		}
-
-		currentByte += maxChunkSize
-		chunkIndex++
-
-		if int64(len(chunkData)) < maxChunkSize {
-			break
-		}
+	if method != http.MethodHead {
+		buf := make([]byte, 32*1024)
+		_, _ = io.CopyBuffer(w, resp.Body, buf)
 	}
 
 	return http.StatusOK, nil
